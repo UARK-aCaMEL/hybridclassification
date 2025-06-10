@@ -40,6 +40,9 @@ workflow PIPELINE_INITIALISATION {
     input             // string: Path to input VCF or VCF.gz file
     popmap            // string: path to popmap file
     speciesmap
+    site_coords
+    species_meta
+    combinations
 
     main:
 
@@ -125,6 +128,45 @@ workflow PIPELINE_INITIALISATION {
         }
         .set{ ch_speciesmap }
 
+    //
+    // Channel for site_coords
+    //
+    Channel
+        .fromPath(site_coords)
+        .map { file ->
+            def meta = [id: file.simpleName]
+            return [meta, file]
+        }
+        .set{ ch_site_coords }
+
+    //
+    // Channel for species_meta
+    //
+    Channel
+        .fromPath(species_meta)
+        .map { file ->
+            def meta = [id: file.simpleName]
+            return [meta, file]
+        }
+        .set{ ch_species_meta }
+
+    //
+    // Channel for combinations to test
+    //
+    Channel
+        .fromPath(combinations)
+        .splitText()
+        .map { line ->
+            def (pop1, pop2) = line.tokenize()
+            def meta = [
+                id  : "${pop1}_${pop2}",
+                pop1: pop1,
+                pop2: pop2
+            ]
+            return [meta]
+        }
+        .set { ch_combinations }
+
     // Collect versions
     ch_versions = ch_versions.mix(TABIX_BGZIP.out.versions)
     ch_versions = ch_versions.mix(TABIX_TABIX.out.versions)
@@ -134,6 +176,9 @@ workflow PIPELINE_INITIALISATION {
     tbi       = TABIX_TABIX.out.tbi
     popmap    = ch_popmap
     speciesmap = ch_speciesmap
+    site_coords = ch_site_coords
+    species_meta = ch_species_meta
+    combinations = ch_combinations
     versions  = ch_versions
 }
 

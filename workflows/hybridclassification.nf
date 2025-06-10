@@ -10,6 +10,9 @@ include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pi
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hybridclassification_pipeline'
 
+include { ADMIXPIPE              } from '../subworkflows/local/admixpipe.nf'
+
+
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     RUN MAIN WORKFLOW
@@ -23,11 +26,50 @@ workflow HYBRIDCLASSIFICATION {
     ch_tbi     // [meta, tbi]
     ch_popmap  // [meta, popmap]
     ch_speciesmap // [meta, speciesmap]
+    ch_site_coords
+    ch_species_meta
+    ch_combinations
 
     main:
 
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
+
+    ch_combinations.view()
+
+    //
+    // Generate subset VCFs for each test combination
+    //
+    // SNPIO_SELECT(
+    //     ch_vcf,
+    //     ch_tbi,
+    //     ch_speciesmap,
+    //     ch_tests
+    // )
+
+    //
+    // VCF pre-processing
+    //
+    // SNPIO_FILTER(
+    //     ch_vcf,
+    //     ch_tbi,
+    //     ch_popmap
+    // )
+    // ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
+    // ch_filtered_vcf = SNPIO_FILTER.out.filtered_vcf.map { meta, file -> tuple(meta + [id: "${meta.id}_filtered"], file) }
+    // ch_filtered_tbi = SNPIO_FILTER.out.filtered_tbi.map { meta, file -> tuple(meta + [id: "${meta.id}_filtered"], file) }
+    // ch_snpio_output = SNPIO_FILTER.out.snpio_output.map { meta, dir -> tuple(meta + [id: "${meta.id}_filtered"], dir) }
+
+
+    // //
+    // // Run admixture pipeline on full (filtered) dataset
+    // //
+    // ADMIXPIPE_PRE(
+    //     ch_filtered_vcf,
+    //     ch_popmap
+    // )
+    // ch_versions = ch_versions.mix(ADMIXPIPE_PRE.out.versions)
+
 
 
     //

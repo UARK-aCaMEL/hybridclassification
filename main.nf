@@ -35,6 +35,9 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
     tbi
     popmap
     speciesmap
+    site_coords
+    species_meta
+    combinations
 
     main:
 
@@ -45,7 +48,10 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
         vcf,
         tbi,
         popmap,
-        speciesmap
+        speciesmap,
+        site_coords,
+        species_meta,
+        combinations
     )
 
     emit:
@@ -74,7 +80,10 @@ workflow {
         params.outdir,
         params.input,
         params.popmap,
-        params.speciesmap
+        params.speciesmap,
+        params.site_coords,
+        params.species_meta,
+        params.combinations
     )
 
     //
@@ -84,7 +93,10 @@ workflow {
         PIPELINE_INITIALISATION.out.vcf,
         PIPELINE_INITIALISATION.out.tbi,
         PIPELINE_INITIALISATION.out.popmap,
-        PIPELINE_INITIALISATION.out.speciesmap
+        PIPELINE_INITIALISATION.out.speciesmap,
+        PIPELINE_INITIALISATION.out.site_coords,
+        PIPELINE_INITIALISATION.out.species_meta,
+        PIPELINE_INITIALISATION.out.combinations
     )
 
     //
