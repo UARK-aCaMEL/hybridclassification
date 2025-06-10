@@ -19,6 +19,8 @@ include { nfCoreLogo                } from '../../nf-core/utils_nfcore_pipeline'
 include { imNotification            } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
 include { workflowCitation          } from '../../nf-core/utils_nfcore_pipeline'
+include { TABIX_TABIX               } from '../../../modules/nf-core/tabix/tabix/main'
+include { TABIX_BGZIP               } from '../../../modules/nf-core/tabix/bgzip/main'
 
 /*
 ========================================================================================
@@ -35,7 +37,9 @@ workflow PIPELINE_INITIALISATION {
     monochrome_logs   // boolean: Do not use coloured log outputs
     nextflow_cli_args //   array: List of positional nextflow CLI args
     outdir            //  string: The output directory where the results will be saved
-    input             //  string: Path to input samplesheet
+    input             // string: Path to input VCF or VCF.gz file
+    popmap            // string: path to popmap file
+    speciesmap
 
     main:
 
@@ -74,31 +78,63 @@ workflow PIPELINE_INITIALISATION {
     )
 
     //
+    // Custom validation for pipeline parameters
+    //
+    validateInputParameters()
+
+    //
     // Create channel from input file provided through params.input
     //
     Channel
-        .fromSamplesheet("input")
-        .map {
-            meta, fastq_1, fastq_2 ->
-                if (!fastq_2) {
-                    return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
-                } else {
-                    return [ meta.id, meta + [ single_end:false ], [ fastq_1, fastq_2 ] ]
-                }
+        .fromPath(input)
+        .map { file ->
+            def meta = [id: file.simpleName]
+            return [meta, file]
         }
-        .groupTuple()
-        .map {
-            validateInputSamplesheet(it)
+        .branch {
+            vcf: it[1].name.endsWith('.vcf')
+            vcfgz: it[1].name.endsWith('.vcf.gz')
         }
-        .map {
-            meta, fastqs ->
-                return [ meta, fastqs.flatten() ]
+        .set { ch_input }
+
+    // Process VCF inputs
+    TABIX_BGZIP ( ch_input.vcf )
+    ch_tabix_vcf_input = ch_input.vcfgz
+        | mix (TABIX_BGZIP.out.output )
+    TABIX_TABIX( ch_tabix_vcf_input )
+
+    //
+    // Create channel for the popmap
+    //
+    Channel
+        .fromPath(popmap)
+        .map { file ->
+            def meta = [id: file.simpleName]
+            return [meta, file]
         }
-        .set { ch_samplesheet }
+        .set{ ch_popmap }
+
+    //
+    // Channel for speciesmap
+    //
+    Channel
+        .fromPath(speciesmap)
+        .map { file ->
+            def meta = [id: file.simpleName]
+            return [meta, file]
+        }
+        .set{ ch_speciesmap }
+
+    // Collect versions
+    ch_versions = ch_versions.mix(TABIX_BGZIP.out.versions)
+    ch_versions = ch_versions.mix(TABIX_TABIX.out.versions)
 
     emit:
-    samplesheet = ch_samplesheet
-    versions    = ch_versions
+    vcf       = ch_tabix_vcf_input
+    tbi       = TABIX_TABIX.out.tbi
+    popmap    = ch_popmap
+    speciesmap = ch_speciesmap
+    versions  = ch_versions
 }
 
 /*
@@ -149,20 +185,14 @@ workflow PIPELINE_COMPLETION {
 */
 
 //
-// Validate channels from input samplesheet
+// Validate input params
 //
-def validateInputSamplesheet(input) {
-    def (metas, fastqs) = input[1..2]
-
-    // Check that multiple runs of the same sample are of the same datatype i.e. single-end / paired-end
-    def endedness_ok = metas.collect{ it.single_end }.unique().size == 1
-    if (!endedness_ok) {
-        error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
-    }
-
-    return [ metas[0], fastqs ]
+def validateInputParameters() {
+    // // Validate maxk is an integer
+    // if (!(params.maxk instanceof Integer)) {
+    //     log.error "Invalid value for --maxk: '${params.maxk}'. It must be an integer."
+    // }
 }
-
 //
 // Generate methods description for MultiQC
 //

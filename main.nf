@@ -31,7 +31,10 @@ include { PIPELINE_COMPLETION     } from './subworkflows/local/utils_nfcore_hybr
 workflow ACAMEL_HYBRIDCLASSIFICATION {
 
     take:
-    samplesheet // channel: samplesheet read in from --input
+    vcf
+    tbi
+    popmap
+    speciesmap
 
     main:
 
@@ -39,7 +42,10 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
     // WORKFLOW: Run pipeline
     //
     HYBRIDCLASSIFICATION (
-        samplesheet
+        vcf,
+        tbi,
+        popmap,
+        speciesmap
     )
 
     emit:
@@ -66,14 +72,19 @@ workflow {
         params.monochrome_logs,
         args,
         params.outdir,
-        params.input
+        params.input,
+        params.popmap,
+        params.speciesmap
     )
 
     //
     // WORKFLOW: Run main workflow
     //
     ACAMEL_HYBRIDCLASSIFICATION (
-        PIPELINE_INITIALISATION.out.samplesheet
+        PIPELINE_INITIALISATION.out.vcf,
+        PIPELINE_INITIALISATION.out.tbi,
+        PIPELINE_INITIALISATION.out.popmap,
+        PIPELINE_INITIALISATION.out.speciesmap
     )
 
     //
