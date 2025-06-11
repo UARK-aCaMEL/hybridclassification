@@ -53,7 +53,7 @@ def main():
     gd = VCFReader(
         filename=args.vcf,
         popmapfile=args.popmap,
-        force_popmap=True,
+        force_popmap=False,
         verbose=True,
         plot_format="png",
         plot_fontsize=8,

@@ -11,7 +11,8 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hybridclassification_pipeline'
 
 include { ADMIXPIPE              } from '../subworkflows/local/admixpipe.nf'
-
+include { SNPIO_FILTER           } from '../modules/local/snpio/pre_filter.nf'
+include { SNPIO_SELECT           } from '../modules/local/snpio/select_pops.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -35,31 +36,41 @@ workflow HYBRIDCLASSIFICATION {
     ch_versions = Channel.empty()
     ch_multiqc_files = Channel.empty()
 
-    ch_combinations.view()
-
     //
     // Generate subset VCFs for each test combination
     //
-    // SNPIO_SELECT(
-    //     ch_vcf,
-    //     ch_tbi,
-    //     ch_speciesmap,
-    //     ch_tests
-    // )
+    ch_combinations
+        .combine(ch_vcf)
+        .combine(ch_tbi)
+        .combine(ch_speciesmap)
+        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_popmap, popmap ->
+            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_popmap, popmap]]
+        }
+        .set { ch_snpio_input }
+
+    SNPIO_SELECT(
+        ch_snpio_input.map { it[1] }, // vcf with meta
+        ch_snpio_input.map { it[2] }, // tbi with meta
+        ch_snpio_input.map { it[3] }, // popmap with meta
+        ch_snpio_input.map { it[0] }  // pops combination
+    )
+    ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
+    SNPIO_SELECT.out.filtered_vcf.view()
 
     //
-    // VCF pre-processing
+    //VCF pre-processing
     //
-    // SNPIO_FILTER(
-    //     ch_vcf,
-    //     ch_tbi,
-    //     ch_popmap
-    // )
-    // ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
-    // ch_filtered_vcf = SNPIO_FILTER.out.filtered_vcf.map { meta, file -> tuple(meta + [id: "${meta.id}_filtered"], file) }
-    // ch_filtered_tbi = SNPIO_FILTER.out.filtered_tbi.map { meta, file -> tuple(meta + [id: "${meta.id}_filtered"], file) }
-    // ch_snpio_output = SNPIO_FILTER.out.snpio_output.map { meta, dir -> tuple(meta + [id: "${meta.id}_filtered"], dir) }
+    SNPIO_SELECT.out.filtered_vcf
+        .combine(ch_popmap)
+        .map { pops, vcf, meta_popmap, popmap ->
+            [pops, vcf, popmap]
+        }
+        .set { ch_filter_input }
 
+    SNPIO_FILTER(
+        ch_filter_input
+    )
+    ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
     // //
     // // Run admixture pipeline on full (filtered) dataset

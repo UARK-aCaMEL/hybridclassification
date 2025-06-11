@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os
-from snpio import NRemover2, VCFReader
+from snpio import VCFReader
 
 
 def get_prefix_from_vcf_path(vcf_path):
@@ -17,37 +17,16 @@ def main():
         description="Run SNPio to filter individuals and generate missingness reports"
     )
     parser.add_argument("--vcf", required=True, help="Path to the VCF file.")
-    parser.add_argument(
-        "--popmap", required=True, help="Path to the population map file."
-    )
-    parser.add_argument(
-        "--ind_cov",
-        type=float,
-        default=0.75,
-        help="Maximum allowed missingness per individual (default: 0.75)",
-    )
-    parser.add_argument(
-        "--flank_dist",
-        type=int,
-        default=75,
-        help="Maximum allowed distance between SNPs (default: 75)",
-    )
-    parser.add_argument(
-        "--min_maf",
-        type=float,
-        default=0.05,
-        help="Maximum MAF to retain a SNP (default: 0.05)",
-    )
-    parser.add_argument(
-        "--snp_cov",
-        type=float,
-        default=0.9,
-        help="Maximum missing data to retain a SNP (default: 0.9)",
-    )
+    parser.add_argument("--popmap", required=True, help="Path to the population map file.")
+    parser.add_argument("--include", action="append", required=True,
+                        help="Population to include (use multiple times for multiple pops)")
+    parser.add_argument("--prefix", type=str, default=None,
+                        help="Prefix for output files (default: derived from VCF name)")
+
     args = parser.parse_args()
 
-    # extract prefix from VCF filename
-    prefix = get_prefix_from_vcf_path(args.vcf)
+    # Use user-specified prefix or fallback to VCF-derived
+    prefix = args.prefix or get_prefix_from_vcf_path(args.vcf)
 
     # read data
     gd = VCFReader(
@@ -59,26 +38,11 @@ def main():
         plot_fontsize=8,
         plot_dpi=300,
         prefix=prefix,
+        include_pops=args.include
     )
 
-    # generate missingness reports
-    gd.missingness_reports()
-
-    # Filter VCF
-    nrm = NRemover2(gd)
-    gd_filt = (
-        nrm.filter_monomorphic(exclude_heterozygous=False)
-        .thin_loci(remove_all=False, size=args.flank_dist)
-        .filter_missing(args.snp_cov)
-        .filter_maf(args.min_maf)
-        .filter_missing_sample(args.ind_cov)
-        .resolve()
-    )
-    nrm.plot_sankey_filtering_report()
-
-    # Write the filtered VCF using the modified prefix
-    output_vcf = f"{prefix}.filter.vcf"
-    gd_filt.write_vcf(output_vcf)
+    output_vcf = f"{prefix}.subset.vcf"
+    gd.write_vcf(output_vcf)
 
 
 if __name__ == "__main__":

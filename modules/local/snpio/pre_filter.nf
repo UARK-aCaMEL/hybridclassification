@@ -1,13 +1,11 @@
-process SNPIO_PRE_FILTER {
+process SNPIO_FILTER {
     tag "$meta.id"
     label 'process_medium'
 
     container 'docker.io/btmartin721/snpio:1.3.6'
 
     input:
-    tuple val(meta), path(vcf)
-    tuple val(meta2), path(tbi)
-    tuple val(meta3), path(popmap)
+    tuple val(meta), path(vcf), path(popmap)
 
     output:
     tuple val(meta), path("${meta.id}.filter.nremover.vcf.gz"), emit: filtered_vcf
@@ -23,7 +21,7 @@ process SNPIO_PRE_FILTER {
         --vcf ${vcf} \\
         --popmap ${popmap} \\
         --ind_cov ${params.ind_cov} \\
-        --flank_dist ${params.primer_length} \\
+        --flank_dist ${params.thin_dist} \\
         --min_maf ${params.min_maf} \\
         --snp_cov ${params.snp_cov} \\
         ${args}
