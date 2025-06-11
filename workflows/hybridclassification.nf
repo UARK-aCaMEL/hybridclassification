@@ -4,12 +4,15 @@
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { FASTQC                 } from '../modules/nf-core/fastqc/main'
 include { MULTIQC                } from '../modules/nf-core/multiqc/main'
 include { paramsSummaryMap       } from 'plugin/nf-validation'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hybridclassification_pipeline'
+
+include { ADMIXPIPE              } from '../subworkflows/local/admixpipe.nf'
+include { SNPIO_FILTER           } from '../modules/local/snpio/pre_filter.nf'
+include { SNPIO_SELECT           } from '../modules/local/snpio/select_pops.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -20,7 +23,13 @@ include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hybr
 workflow HYBRIDCLASSIFICATION {
 
     take:
-    ch_samplesheet // channel: samplesheet read in from --input
+    ch_vcf     // [meta, vcf]
+    ch_tbi     // [meta, tbi]
+    ch_popmap  // [meta, popmap]
+    ch_speciesmap // [meta, speciesmap]
+    ch_site_coords
+    ch_species_meta
+    ch_combinations
 
     main:
 
@@ -28,13 +37,51 @@ workflow HYBRIDCLASSIFICATION {
     ch_multiqc_files = Channel.empty()
 
     //
-    // MODULE: Run FastQC
+    // Generate subset VCFs for each test combination
     //
-    FASTQC (
-        ch_samplesheet
+    ch_combinations
+        .combine(ch_vcf)
+        .combine(ch_tbi)
+        .combine(ch_speciesmap)
+        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_popmap, popmap ->
+            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_popmap, popmap]]
+        }
+        .set { ch_snpio_input }
+
+    SNPIO_SELECT(
+        ch_snpio_input.map { it[1] }, // vcf with meta
+        ch_snpio_input.map { it[2] }, // tbi with meta
+        ch_snpio_input.map { it[3] }, // popmap with meta
+        ch_snpio_input.map { it[0] }  // pops combination
     )
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC.out.zip.collect{it[1]})
-    ch_versions = ch_versions.mix(FASTQC.out.versions.first())
+    ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
+    SNPIO_SELECT.out.filtered_vcf.view()
+
+    //
+    //VCF pre-processing
+    //
+    SNPIO_SELECT.out.filtered_vcf
+        .combine(ch_popmap)
+        .map { pops, vcf, meta_popmap, popmap ->
+            [pops, vcf, popmap]
+        }
+        .set { ch_filter_input }
+
+    SNPIO_FILTER(
+        ch_filter_input
+    )
+    ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
+
+    // //
+    // // Run admixture pipeline on full (filtered) dataset
+    // //
+    // ADMIXPIPE_PRE(
+    //     ch_filtered_vcf,
+    //     ch_popmap
+    // )
+    // ch_versions = ch_versions.mix(ADMIXPIPE_PRE.out.versions)
+
+
 
     //
     // Collate and save software versions
