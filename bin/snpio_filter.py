@@ -44,10 +44,13 @@ def main():
         default=0.9,
         help="Maximum missing data to retain a SNP (default: 0.9)",
     )
+    parser.add_argument("--prefix", type=str, default=None,
+        help="Prefix for output files (default: derived from VCF name)")
+
     args = parser.parse_args()
 
     # extract prefix from VCF filename
-    prefix = get_prefix_from_vcf_path(args.vcf)
+    prefix = args.prefix or get_prefix_from_vcf_path(args.vcf)
 
     # read data
     gd = VCFReader(

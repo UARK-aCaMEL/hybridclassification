@@ -2,7 +2,7 @@ process SNPIO_SELECT{
     tag "$pops.id"
     label 'process_medium'
 
-    container 'docker.io/btmartin721/snpio:1.3.6'
+    container 'docker.io/btmartin721/snpio:1.3.11'
 
     input:
     tuple val(meta), path(vcf)
@@ -26,7 +26,7 @@ process SNPIO_SELECT{
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        SNPio: 1.3.6
+        SNPio: 1.3.11
     END_VERSIONS
     """
 }

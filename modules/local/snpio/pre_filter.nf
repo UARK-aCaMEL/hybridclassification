@@ -2,7 +2,7 @@ process SNPIO_FILTER {
     tag "$meta.id"
     label 'process_medium'
 
-    container 'docker.io/btmartin721/snpio:1.3.6'
+    container 'docker.io/btmartin721/snpio:1.3.11'
 
     input:
     tuple val(meta), path(vcf), path(popmap)
@@ -24,11 +24,12 @@ process SNPIO_FILTER {
         --flank_dist ${params.thin_dist} \\
         --min_maf ${params.min_maf} \\
         --snp_cov ${params.snp_cov} \\
+        --prefix ${meta.id} \\
         ${args}
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        SNPio: 1.3.6
+        SNPio: 1.3.11
     END_VERSIONS
     """
 }
