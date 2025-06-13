@@ -71,12 +71,24 @@ workflow HYBRIDCLASSIFICATION {
     )
     ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
+    SNPIO_FILTER.out.filtered_vcf.view()
+
     //
-    // Run admixture pipeline on full (filtered) dataset
+    // Run admixture pipeline on each filtered dataset
     //
+    SNPIO_FILTER.out.filtered_vcf
+        .map { meta, vcf ->
+            [meta, vcf]
+        }
+        .combine(ch_popmap.map { meta_popmap, popmap -> popmap })
+        .map { meta, vcf, popmap ->
+            [ [meta, vcf], [meta, popmap] ]
+        }
+        .set { ch_admixpipe_input }
+
     ADMIXPIPE(
-        SNPIO_FILTER.out.filtered_vcf,
-        ch_popmap
+        ch_admixpipe_input.map { it[0] }, // [meta, vcf]
+        ch_admixpipe_input.map { it[1] }  // [meta, popmap]
     )
     ch_versions = ch_versions.mix(ADMIXPIPE.out.versions)
 
