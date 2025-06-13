@@ -78,6 +78,7 @@ workflow ADMIXPIPE {
     best_results = DISTRUCT.out.best_results
     bestK        = BESTK.out.bestK_file
     bestK_clumpp = BESTK.out.bestK_clumpp
+    k2_clumpp    = BESTK.out.k2_clumpp
     inds         = ADMIXTUREPIPELINE.out.inds
     pops         = ADMIXTUREPIPELINE.out.pops
     cv_file      = CVSUM.out.cv_output

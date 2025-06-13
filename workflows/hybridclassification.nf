@@ -11,8 +11,10 @@ include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pi
 include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hybridclassification_pipeline'
 
 include { ADMIXPIPE              } from '../subworkflows/local/admixpipe.nf'
+include { NEWHYBRIDS             } from '../subworkflows/local/newhybrids.nf'
 include { SNPIO_FILTER           } from '../modules/local/snpio/pre_filter.nf'
 include { SNPIO_SELECT           } from '../modules/local/snpio/select_pops.nf'
+include { FIND_CANDIDATES        } from '../modules/local/find_candidates.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -71,7 +73,6 @@ workflow HYBRIDCLASSIFICATION {
     )
     ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
-    SNPIO_FILTER.out.filtered_vcf.view()
 
     //
     // Run admixture pipeline on each filtered dataset
@@ -92,6 +93,28 @@ workflow HYBRIDCLASSIFICATION {
     )
     ch_versions = ch_versions.mix(ADMIXPIPE.out.versions)
 
+
+    //
+    // Generate inputs for newhybrids subworkflow
+    //
+    FIND_CANDIDATES(
+        ADMIXPIPE.out.k2_clumpp,
+        ADMIXPIPE.out.inds,
+        ch_popmap,
+        ch_speciesmap
+    )
+    ch_versions = ch_versions.mix( FIND_CANDIDATES.out.versions )
+
+
+    //
+    // NewHybrids subworkflow
+    //
+    NEWHYBRIDS(
+        SNPIO_FILTER.out.filtered_vcf,
+        SNPIO_FILTER.out.filtered_tbi,
+        FIND_CANDIDATES.out.popmap
+    )
+    ch_versions = ch_versions.mix( NEWHYBRIDS.out.versions )
 
     //
     // Collate and save software versions
