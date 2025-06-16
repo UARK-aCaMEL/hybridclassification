@@ -44,10 +44,13 @@ def main():
         default=0.9,
         help="Maximum missing data to retain a SNP (default: 0.9)",
     )
+    parser.add_argument("--prefix", type=str, default=None,
+        help="Prefix for output files (default: derived from VCF name)")
+
     args = parser.parse_args()
 
     # extract prefix from VCF filename
-    prefix = get_prefix_from_vcf_path(args.vcf)
+    prefix = args.prefix or get_prefix_from_vcf_path(args.vcf)
 
     # read data
     gd = VCFReader(
@@ -68,10 +71,10 @@ def main():
     nrm = NRemover2(gd)
     gd_filt = (
         nrm.filter_monomorphic(exclude_heterozygous=False)
-        .thin_loci(remove_all=False, size=args.flank_dist)
         .filter_missing(args.snp_cov)
         .filter_maf(args.min_maf)
         .filter_missing_sample(args.ind_cov)
+        .thin_loci(remove_all=False, size=args.flank_dist)
         .resolve()
     )
     nrm.plot_sankey_filtering_report()
