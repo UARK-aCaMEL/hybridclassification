@@ -29,9 +29,9 @@ workflow HYBRIDCLASSIFICATION {
     ch_tbi     // [meta, tbi]
     ch_popmap  // [meta, popmap]
     ch_speciesmap // [meta, speciesmap]
-    ch_site_coords
-    ch_species_meta
-    ch_combinations
+    ch_site_coords // [meta, site_coords]
+    ch_species_meta // [meta, species_meta]
+    ch_combinations // [meta] where meta = [id: "${pop1}_${pop2}", pop1: pop1, pop2: pop2]
 
     main:
 
@@ -39,75 +39,86 @@ workflow HYBRIDCLASSIFICATION {
     ch_multiqc_files = Channel.empty()
 
     //
-    // Generate subset VCFs for each test combination
+    // Create multi-item channels with combination meta for all inputs
+    //
+    ch_combo_popmap = ch_combinations
+        .combine(ch_popmap)
+        .map { combo_meta, orig_meta, popmap ->
+            [combo_meta, popmap]
+        }
+
+    ch_combo_speciesmap = ch_combinations
+        .combine(ch_speciesmap)
+        .map { combo_meta, orig_meta, speciesmap ->
+            [combo_meta, speciesmap]
+        }
+
+    ch_combo_site_coords = ch_combinations
+        .combine(ch_site_coords)
+        .map { combo_meta, orig_meta, site_coords ->
+            [combo_meta, site_coords]
+        }
+
+    ch_combo_species_meta = ch_combinations
+        .combine(ch_species_meta)
+        .map { combo_meta, orig_meta, species_meta ->
+            [combo_meta, species_meta]
+        }
+
+    //
+    // Generate subset VCFs for each test combination (keep original working approach)
     //
     ch_combinations
         .combine(ch_vcf)
         .combine(ch_tbi)
         .combine(ch_speciesmap)
-        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_popmap, popmap ->
-            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_popmap, popmap]]
+        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_speciesmap, speciesmap ->
+            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_speciesmap, speciesmap]]
         }
         .set { ch_snpio_input }
 
     SNPIO_SELECT(
         ch_snpio_input.map { it[1] }, // vcf with meta
         ch_snpio_input.map { it[2] }, // tbi with meta
-        ch_snpio_input.map { it[3] }, // popmap with meta
+        ch_snpio_input.map { it[3] }, // speciesmap with meta
         ch_snpio_input.map { it[0] }  // pops combination
     )
     ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
 
     //
-    //VCF pre-processing
+    // VCF pre-processing (use combo channels for natural matching)
     //
-    SNPIO_SELECT.out.filtered_vcf
-        .combine(ch_popmap)
-        .map { pops, vcf, meta_popmap, popmap ->
-            [pops, vcf, popmap]
-        }
-        .set { ch_filter_input }
-
     SNPIO_FILTER(
-        ch_filter_input
+        SNPIO_SELECT.out.filtered_vcf
+            .join(ch_combo_popmap, by: 0)
+            .map { meta, vcf, popmap ->
+                [meta, vcf, popmap]
+            }
     )
     ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
-
     //
-    // Run admixture pipeline on each filtered dataset
+    // Run admixture pipeline - natural meta matching
     //
-    SNPIO_FILTER.out.filtered_vcf
-        .map { meta, vcf ->
-            [meta, vcf]
-        }
-        .combine(ch_popmap.map { meta_popmap, popmap -> popmap })
-        .map { meta, vcf, popmap ->
-            [ [meta, vcf], [meta, popmap] ]
-        }
-        .set { ch_admixpipe_input }
-
     ADMIXPIPE(
-        ch_admixpipe_input.map { it[0] }, // [meta, vcf]
-        ch_admixpipe_input.map { it[1] }  // [meta, popmap]
+        SNPIO_FILTER.out.filtered_vcf,
+        ch_combo_popmap
     )
     ch_versions = ch_versions.mix(ADMIXPIPE.out.versions)
 
-
     //
-    // Generate inputs for newhybrids subworkflow
+    // Generate inputs for newhybrids - natural meta matching
     //
     FIND_CANDIDATES(
         ADMIXPIPE.out.k2_clumpp,
         ADMIXPIPE.out.inds,
-        ch_popmap,
-        ch_speciesmap
+        ch_combo_popmap,
+        ch_combo_speciesmap
     )
     ch_versions = ch_versions.mix( FIND_CANDIDATES.out.versions )
 
-
     //
-    // NewHybrids subworkflow
+    // NewHybrids subworkflow - natural meta matching
     //
     NEWHYBRIDS(
         SNPIO_FILTER.out.filtered_vcf,

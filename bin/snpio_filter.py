@@ -71,10 +71,10 @@ def main():
     nrm = NRemover2(gd)
     gd_filt = (
         nrm.filter_monomorphic(exclude_heterozygous=False)
-        .thin_loci(remove_all=False, size=args.flank_dist)
         .filter_missing(args.snp_cov)
         .filter_maf(args.min_maf)
         .filter_missing_sample(args.ind_cov)
+        .thin_loci(remove_all=False, size=args.flank_dist)
         .resolve()
     )
     nrm.plot_sankey_filtering_report()

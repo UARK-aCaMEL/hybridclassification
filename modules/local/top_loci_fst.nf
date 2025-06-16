@@ -12,7 +12,7 @@ process TOP_LOCI_FST {
     tuple val(meta3), path(popmap)
 
     output:
-    tuple val(meta), path("${meta.id}_top${topN}_fst.vcf.gz"), emit: top_vcf
+    tuple val(meta), path("${meta.id}_top${params.panel_size}_fst.vcf"), emit: top_vcf
     tuple val(meta), path("${meta.id}_fst_per_locus.tsv"),     emit: fst_table
 
     script:
@@ -42,9 +42,7 @@ process TOP_LOCI_FST {
     --positions positions.txt \\
     --recode \\
     --stdout \\
-    | bgzip -c > ${meta.id}_top${topN}_fst.vcf.gz
-
-    tabix -p vcf ${meta.id}_top${topN}_fst.vcf.gz
+    > ${meta.id}_top${params.panel_size}_fst.vcf
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
