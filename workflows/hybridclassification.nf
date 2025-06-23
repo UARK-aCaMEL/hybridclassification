@@ -29,9 +29,9 @@ workflow HYBRIDCLASSIFICATION {
     ch_tbi     // [meta, tbi]
     ch_popmap  // [meta, popmap]
     ch_speciesmap // [meta, speciesmap]
-    ch_site_coords // [meta, site_coords]
-    ch_species_meta // [meta, species_meta]
-    ch_combinations // [meta] where meta = [id: "${pop1}_${pop2}", pop1: pop1, pop2: pop2]
+    ch_site_coords
+    ch_species_meta
+    ch_combinations
 
     main:
 
@@ -39,91 +39,88 @@ workflow HYBRIDCLASSIFICATION {
     ch_multiqc_files = Channel.empty()
 
     //
-    // Create multi-item channels with combination meta for all inputs
-    //
-    ch_combo_popmap = ch_combinations
-        .combine(ch_popmap)
-        .map { combo_meta, orig_meta, popmap ->
-            [combo_meta, popmap]
-        }
-
-    ch_combo_speciesmap = ch_combinations
-        .combine(ch_speciesmap)
-        .map { combo_meta, orig_meta, speciesmap ->
-            [combo_meta, speciesmap]
-        }
-
-    ch_combo_site_coords = ch_combinations
-        .combine(ch_site_coords)
-        .map { combo_meta, orig_meta, site_coords ->
-            [combo_meta, site_coords]
-        }
-
-    ch_combo_species_meta = ch_combinations
-        .combine(ch_species_meta)
-        .map { combo_meta, orig_meta, species_meta ->
-            [combo_meta, species_meta]
-        }
-
-    //
-    // Generate subset VCFs for each test combination (keep original working approach)
+    // Generate subset VCFs for each test combination
     //
     ch_combinations
         .combine(ch_vcf)
         .combine(ch_tbi)
         .combine(ch_speciesmap)
-        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_speciesmap, speciesmap ->
-            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_speciesmap, speciesmap]]
+        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_popmap, popmap ->
+            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_popmap, popmap]]
         }
         .set { ch_snpio_input }
 
     SNPIO_SELECT(
         ch_snpio_input.map { it[1] }, // vcf with meta
         ch_snpio_input.map { it[2] }, // tbi with meta
-        ch_snpio_input.map { it[3] }, // speciesmap with meta
+        ch_snpio_input.map { it[3] }, // popmap with meta
         ch_snpio_input.map { it[0] }  // pops combination
     )
     ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
 
     //
-    // VCF pre-processing (use combo channels for natural matching)
+    //VCF pre-processing
     //
+    SNPIO_SELECT.out.filtered_vcf
+        .combine(ch_speciesmap)
+        .map { pops, vcf, meta_popmap, popmap ->
+            [pops, vcf, popmap]
+        }
+        .set { ch_filter_input }
+
     SNPIO_FILTER(
-        SNPIO_SELECT.out.filtered_vcf
-            .join(ch_combo_popmap, by: 0)
-            .map { meta, vcf, popmap ->
-                [meta, vcf, popmap]
-            }
+        ch_filter_input
     )
     ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
+
     //
-    // Run admixture pipeline - natural meta matching
+    // Run admixture pipeline on each filtered dataset
     //
+    SNPIO_FILTER.out.filtered_vcf
+        .map { meta, vcf ->
+            [meta, vcf]
+        }
+        .combine(ch_popmap.map { meta_popmap, popmap -> popmap })
+        .map { meta, vcf, popmap ->
+            [ [meta, vcf], [meta, popmap] ]
+        }
+        .set { ch_admixpipe_input }
+
     ADMIXPIPE(
-        SNPIO_FILTER.out.filtered_vcf,
-        ch_combo_popmap
+        ch_admixpipe_input.map { it[0] }, // [meta, vcf]
+        ch_admixpipe_input.map { it[1] }  // [meta, popmap]
     )
     ch_versions = ch_versions.mix(ADMIXPIPE.out.versions)
 
+
     //
-    // Generate inputs for newhybrids - natural meta matching
+    // Generate inputs for newhybrids subworkflow
     //
+    ch_joined  = ADMIXPIPE.out.k2_clumpp.join(ADMIXPIPE.out.inds)
+    ch_find_in = ch_joined
+        .combine(ch_popmap.map{meta, popmap -> popmap})
+        .combine(ch_speciesmap.map{meta, popmap -> popmap})
     FIND_CANDIDATES(
-        ADMIXPIPE.out.k2_clumpp,
-        ADMIXPIPE.out.inds,
-        ch_combo_popmap,
-        ch_combo_speciesmap
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, k2) },
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, i) },
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, p) },
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, s) }
     )
     ch_versions = ch_versions.mix( FIND_CANDIDATES.out.versions )
 
+
     //
-    // NewHybrids subworkflow - natural meta matching
+    // NewHybrids subworkflow
     //
+    ch_joined_nh = SNPIO_FILTER.out.filtered_vcf
+                        .join(SNPIO_FILTER.out.filtered_tbi)
+                        .join(FIND_CANDIDATES.out.popmap)
+    ch_joined_nh.view()
     NEWHYBRIDS(
-        SNPIO_FILTER.out.filtered_vcf,
-        SNPIO_FILTER.out.filtered_tbi,
-        FIND_CANDIDATES.out.popmap
+        ch_joined_nh.map { m, v, t, p -> tuple(m, v) },
+        ch_joined_nh.map { m, v, t, p -> tuple(m, t) },
+        ch_joined_nh.map { m, v, t, p -> tuple(m, p) }
     )
     ch_versions = ch_versions.mix( NEWHYBRIDS.out.versions )
 

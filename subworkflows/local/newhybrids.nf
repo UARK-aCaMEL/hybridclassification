@@ -6,6 +6,7 @@ include { TABIX_BGZIP } from '../../modules/nf-core/tabix/bgzip/main'
 include { TABIX_TABIX } from '../../modules/nf-core/tabix/tabix/main'
 include { SNPIO_POPFILTER } from '../../modules/local/snpio/pop_filter.nf'
 include { TOP_LOCI_FST } from '../../modules/local/top_loci_fst.nf'
+include { VCF_TO_GENEPOP } from '../../modules/local/vcf_to_genepop.nf'
 
 workflow NEWHYBRIDS {
     take:
@@ -35,12 +36,12 @@ workflow NEWHYBRIDS {
     )
 
     //
-    // Convert from GZVCF to VCF
-    //
-
-    //
     // GENEPOP conversion
     //
+    VCF_TO_GENEPOP(
+        TOP_LOCI_FST.out.top_vcf,
+        popmap
+    )
 
     // Fetch results for the best K value
     // BESTK(
