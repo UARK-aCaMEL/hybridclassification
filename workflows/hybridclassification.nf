@@ -110,6 +110,7 @@ workflow HYBRIDCLASSIFICATION {
     ch_versions = ch_versions.mix( FIND_CANDIDATES.out.versions )
 
 
+    FIND_CANDIDATES.out.popmap.view()
     //
     // NewHybrids subworkflow
     //
