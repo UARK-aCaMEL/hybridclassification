@@ -18,6 +18,9 @@ workflow ADMIXPIPE {
     main:
     ch_versions = Channel.empty()
 
+    vcf.view()
+    ch_popmap.view()
+
     // Branch input VCF by extension
     vcf
     | branch {

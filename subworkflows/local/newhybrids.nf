@@ -15,19 +15,22 @@ include { RUN_NEWHYBRIDS } from '../../modules/local/newhybrids.nf'
 workflow NEWHYBRIDS {
     take:
     vcf         // [ val(meta), *.vcf or *.vcf.gz ]
-    tbi
-    popmap
+    tbi         // [ val(meta), *.tbi ]
+    popmap      // [ val(meta), popmap ]
 
     main:
     ch_versions = Channel.empty()
+
+    // Join vcf, tbi, and popmap by meta to ensure proper matching
+    ch_joined_inputs = vcf.join(tbi).join(popmap)
 
     //
     // SNPio to remove loci not found in all groups
     //
     SNPIO_POPFILTER(
-        vcf,
-        tbi,
-        popmap
+        ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, vcf_file] },
+        ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, tbi_file] },
+        ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] }
     )
 
     //
@@ -36,23 +39,29 @@ workflow NEWHYBRIDS {
     TOP_LOCI_FST(
         SNPIO_POPFILTER.out.filtered_vcf,
         SNPIO_POPFILTER.out.filtered_tbi,
-        popmap
+        ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] }
     )
+
+    //
+    // Join TOP_LOCI_FST output with popmap for proper matching
+    //
+    ch_top_vcf_with_popmap = TOP_LOCI_FST.out.top_vcf
+        .join(ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] })
 
     //
     // Simulate hybrid datasets (inspired by hybriddetective:simulate_gtfreq)
     //
     SIMULATE_HYBRIDS(
-        TOP_LOCI_FST.out.top_vcf,
-        popmap
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, vcf_file] },
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, popmap_file] }
     )
 
     //
     // Prepare simulated data for input into NewHybrids
     //
     PREPARE_SIMULATION(
-        TOP_LOCI_FST.out.top_vcf,
-        popmap,
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, vcf_file] },
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, popmap_file] },
         SIMULATE_HYBRIDS.out.vcf
     )
 
@@ -68,9 +77,9 @@ workflow NEWHYBRIDS {
     // Prepare full dataset for NewHybrids analysis
     //
     PREPARE_NEWHYBRIDS(
-        TOP_LOCI_FST.out.top_vcf,
-        popmap,
-        [[], []]
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, vcf_file] },
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, popmap_file] },
+        Channel.value([[], []])
     )
 
     //
@@ -79,15 +88,15 @@ workflow NEWHYBRIDS {
     RUN_NEWHYBRIDS(
         PREPARE_NEWHYBRIDS.out.newhybrids
     )
-    ch_versions = ch_versions.mix( POWER_ANALYSIS.out.versions )
+    ch_versions = ch_versions.mix( RUN_NEWHYBRIDS.out.versions )
 
 
     emit:
     versions     = ch_versions
-    // sim_trace
-    // sim_map
-    // sim_result
-    // nh_trace
-    // nh_map
-    // nh_result
+    sim_trace    = POWER_ANALYSIS.out.pi_trace
+    sim_map      = PREPARE_SIMULATION.out.index_map
+    sim_result   = POWER_ANALYSIS.out.pofz
+    nh_trace     = RUN_NEWHYBRIDS.out.pi_trace
+    nh_map       = PREPARE_NEWHYBRIDS.out.index_map
+    nh_result    = RUN_NEWHYBRIDS.out.pofz
 }

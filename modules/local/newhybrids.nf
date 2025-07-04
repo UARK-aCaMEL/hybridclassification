@@ -47,11 +47,10 @@ process RUN_NEWHYBRIDS {
     # Grep out the Pi trace
     grep "PI_TRACE" ${meta.id}_nh_results.txt > pi_trace.tsv
 
-    # record version
+    # record version - quote the output to handle special characters
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        newhybrids: \$(newhybrids --version)
-        awk: \$(awk --version | grep -oP '(?<=GNU Awk ).*?(?=, )')
+        newhybrids: "\$(newhybrids --version 2>&1 | head -n1)"
     END_VERSIONS
 
     # require that NewHybrids completed properly
