@@ -5,9 +5,7 @@ process CLUMPAK {
     container 'docker.io/mussmann/admixpipe:3.2'
 
     input:
-    tuple val(meta), path(results)
-    tuple val(meta2), path(inds)
-    tuple val(meta3), path(pops)
+    tuple val(meta), path(results), path(inds), path(pops)
 
     output:
     tuple val(meta), path("clumpakOutput"),   emit: output

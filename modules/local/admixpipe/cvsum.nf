@@ -5,8 +5,7 @@ process CVSUM {
     container 'docker.io/mussmann/admixpipe:3.2'
 
     input:
-    tuple val(meta), path(cv)
-    tuple val(meta2), path(loglik)
+    tuple val(meta), path(cv), path(loglik)
 
     output:
     tuple val(meta), path("cv_file.MajClust.png"), emit: cv_plot
