@@ -9,7 +9,7 @@ process PLOT_ADMIXTURE {
         tuple val(meta2), path(inds)
         tuple val(meta3), path(pops)
     output:
-        path("admixture_bestk_mqc.html"), emit: admixture_html
+        tuple val(meta), path("${meta.id}_admixture_bestk_mqc.html"), emit: admixture_html
         path("versions.yml")   , emit: versions
 
     script:
@@ -20,7 +20,7 @@ process PLOT_ADMIXTURE {
         --inds ${inds} \\
         --pops ${pops} \\
         --template ${baseDir}/assets/multiqc_admixture_bestk.html \\
-        --out "admixture_bestk_mqc.html" \\
+        --out "${meta.id}_admixture_bestk_mqc.html" \\
         ${args}
 
     plotly_version=\$(python3 -c 'import plotly; print(plotly.__version__)')

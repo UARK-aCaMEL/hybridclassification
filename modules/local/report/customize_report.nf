@@ -1,5 +1,6 @@
 process CUSTOMIZE_REPORT {
     label 'process_single'
+    tag "$meta.id"
 
     conda "conda-forge::gawk=5.1.0"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
