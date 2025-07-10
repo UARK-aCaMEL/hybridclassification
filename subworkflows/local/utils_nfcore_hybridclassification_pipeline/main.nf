@@ -129,26 +129,40 @@ workflow PIPELINE_INITIALISATION {
         .set{ ch_speciesmap }
 
     //
-    // Channel for site_coords
+    // Channel for site_coords (optional)
     //
-    Channel
-        .fromPath(site_coords)
-        .map { file ->
-            def meta = [id: file.simpleName]
-            return [meta, file]
-        }
-        .set{ ch_site_coords }
+    if ( params.site_coords ) {
+        Channel
+            .fromPath( params.site_coords )
+            .map { file ->
+                def meta = [ id: file.simpleName ]
+                return [ meta, file ]
+            }
+            .set { ch_site_coords }
+    }
+    else {
+        Channel
+            .empty()
+            .set { ch_site_coords }
+    }
 
     //
-    // Channel for species_meta
+    // Channel for species_meta (optional)
     //
-    Channel
-        .fromPath(species_meta)
-        .map { file ->
-            def meta = [id: file.simpleName]
-            return [meta, file]
-        }
-        .set{ ch_species_meta }
+    if ( params.species_meta ) {
+        Channel
+            .fromPath( params.species_meta )
+            .map { file ->
+                def meta = [ id: file.simpleName ]
+                return [ meta, file ]
+            }
+            .set { ch_species_meta }
+    }
+    else {
+        Channel
+            .empty()
+            .set { ch_species_meta }
+    }
 
     //
     // Channel for combinations to test

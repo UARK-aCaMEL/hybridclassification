@@ -112,19 +112,22 @@ workflow HYBRIDCLASSIFICATION {
     //
     // Generate reports
     //
-    ch_report_inputs = ADMIXPIPE.out.inds
-                        .join(ADMIXPIPE.out.pops)
-                        .join(ADMIXPIPE.out.k2_clumpp)
-                        .join(ADMIXPIPE.out.bestK_clumpp)
 
     GENERATE_REPORT(
-        ch_report_inputs,
+        ADMIXPIPE.out.inds,
+        ADMIXPIPE.out.pops,
+        ADMIXPIPE.out.k2_clumpp,
+        ADMIXPIPE.out.bestK_clumpp,
+        NEWHYBRIDS.out.nh_result,
+        NEWHYBRIDS.out.nh_trace,
+        NEWHYBRIDS.out.nh_map,
+        FIND_CANDIDATES.out.popmap,
         ch_versions
     )
 
 
     emit:
-    multiqc_report = []
+    multiqc_report = GENERATE_REPORT.out.multiqc_report
     versions       = GENERATE_REPORT.out.versions
 }
 

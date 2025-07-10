@@ -5,10 +5,18 @@ include { methodsDescriptionText } from '../../subworkflows/local/utils_nfcore_h
 include { softwareVersionsToYAML } from '../../subworkflows/nf-core/utils_nfcore_pipeline'
 
 include { PLOT_ADMIXTURE } from '../../modules/local/report/plot_admixture.nf'
+include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
 
 workflow GENERATE_REPORT {
     take:
-    data_files
+    inds
+    pops
+    k2_clumpp
+    bestK_clumpp
+    nh_results
+    nh_trace
+    nh_map
+    popmap
     ch_versions
 
     main:
@@ -17,16 +25,23 @@ workflow GENERATE_REPORT {
 
 
     //Admixture barplots
+    admix_inputs = k2_clumpp
+                    .join(inds)
+                    .join(pops)
     PLOT_ADMIXTURE(
-        data_files.map { m, i, p, k, bk -> tuple(m, k) },
-        data_files.map { m, i, p, k, bk -> tuple(m, i) },
-        data_files.map { m, i, p, k, bk -> tuple(m, p) }
+        admix_inputs.map { m, k, i, p -> tuple(m, k) },
+        admix_inputs.map { m, k, i, p -> tuple(m, i) },
+        admix_inputs.map { m, k, i, p -> tuple(m, p) }
     )
     ch_multiqc_files = PLOT_ADMIXTURE.out.admixture_html
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
 
-    //Plots for power analysis
-
+    //Admixture barplots
+    NH_PLOT_TRACE(
+        nh_trace
+    )
+    ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_TRACE.out.plot_html)
+    ch_versions = ch_versions.mix( NH_PLOT_TRACE.out.versions )
 
     //
     // Collate and save software versions
@@ -70,6 +85,7 @@ workflow GENERATE_REPORT {
         .combine(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true)
     )
 
+    ch_multiqc_files.view()
     MULTIQC (
         ch_multiqc_files,
         ch_multiqc_config.toList(),
@@ -78,6 +94,6 @@ workflow GENERATE_REPORT {
     )
 
     emit:
-    //multiqc_report  = MULTIQC.out.report.toList()
+    multiqc_report  = MULTIQC.out.report.toList()
     versions        = ch_collated_versions
 }
