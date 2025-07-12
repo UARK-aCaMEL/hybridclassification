@@ -39,17 +39,16 @@ workflow HYBRIDCLASSIFICATION {
         .combine(ch_tbi)
         .combine(ch_speciesmap)
         .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_popmap, popmap ->
-            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_popmap, popmap]]
+            [pops, meta_vcf, vcf, tbi, popmap]
         }
         .set { ch_snpio_input }
 
     SNPIO_SELECT(
-        ch_snpio_input.map { it[1] }, // vcf with meta
-        ch_snpio_input.map { it[2] }, // tbi with meta
-        ch_snpio_input.map { it[3] }, // popmap with meta
-        ch_snpio_input.map { it[0] }  // pops combination
+        ch_snpio_input.map { c, m, v, t, p -> [m, v] },
+        ch_snpio_input.map { c, m, v, t, p -> [m, t] },
+        ch_snpio_input.map { c, m, v, t, p -> [m, p] },
+        ch_snpio_input.map { c, m, v, t, p -> c },
     )
-    ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
 
     //
     //VCF pre-processing
@@ -122,6 +121,8 @@ workflow HYBRIDCLASSIFICATION {
         NEWHYBRIDS.out.nh_trace,
         NEWHYBRIDS.out.nh_map,
         FIND_CANDIDATES.out.popmap,
+        ch_popmap,
+        ch_speciesmap,
         ch_versions
     )
 

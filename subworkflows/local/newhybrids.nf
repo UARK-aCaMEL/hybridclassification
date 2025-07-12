@@ -36,10 +36,14 @@ workflow NEWHYBRIDS {
     //
     // reduce to top X loci by Fst
     //
+    ch_top_loci = ch_joined_inputs
+        .map{ meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] }
+        .join( SNPIO_POPFILTER.out.filtered_vcf )
+        .join( SNPIO_POPFILTER.out.filtered_tbi )
     TOP_LOCI_FST(
-        SNPIO_POPFILTER.out.filtered_vcf,
-        SNPIO_POPFILTER.out.filtered_tbi,
-        ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] }
+        ch_top_loci.map { m, p, v, t -> [m, v] },
+        ch_top_loci.map { m, p, v, t -> [m, t] },
+        ch_top_loci.map { m, p, v, t -> [m, p] }
     )
 
     //
@@ -59,11 +63,12 @@ workflow NEWHYBRIDS {
     //
     // Prepare simulated data for input into NewHybrids
     //
-    ch_prep_sim = ch_top_vcf_with_popmap.join(SIMULATE_HYBRIDS.out.vcf)
+
+    ch_prep_sim = ch_top_vcf_with_popmap.join( SIMULATE_HYBRIDS.out.vcf )
     PREPARE_SIMULATION(
-        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, vcf_file] },
-        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, vcf_file] },
-        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, sim_vcf] },
+        ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, vcf_file] },
+        ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, popmap_file] },
+        ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, sim_vcf] },
     )
 
     //

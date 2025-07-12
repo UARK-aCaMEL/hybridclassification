@@ -5,7 +5,9 @@ include { methodsDescriptionText } from '../../subworkflows/local/utils_nfcore_h
 include { softwareVersionsToYAML } from '../../subworkflows/nf-core/utils_nfcore_pipeline'
 
 include { PLOT_ADMIXTURE } from '../../modules/local/report/plot_admixture.nf'
+include { NH_PLOT_CLASSIFICATIONS } from '../../modules/local/report/plot_newhybrids.nf'
 include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
+include { NH_SUMMARY_TABLE } from '../../modules/local/report/newhybrids_summary.nf'
 
 workflow GENERATE_REPORT {
     take:
@@ -16,7 +18,9 @@ workflow GENERATE_REPORT {
     nh_results
     nh_trace
     nh_map
+    candidate_map
     popmap
+    speciesmap
     ch_versions
 
     main:
@@ -28,20 +32,46 @@ workflow GENERATE_REPORT {
     admix_inputs = k2_clumpp
                     .join(inds)
                     .join(pops)
+                    .join(candidate_map)
     PLOT_ADMIXTURE(
-        admix_inputs.map { m, k, i, p -> tuple(m, k) },
-        admix_inputs.map { m, k, i, p -> tuple(m, i) },
-        admix_inputs.map { m, k, i, p -> tuple(m, p) }
+        admix_inputs.map { m, k, i, p, c -> tuple(m, k) },
+        admix_inputs.map { m, k, i, p, c -> tuple(m, i) },
+        admix_inputs.map { m, k, i, p, c -> tuple(m, p) },
+        admix_inputs.map { m, k, i, p, c -> tuple(m, c) }
     )
     ch_multiqc_files = PLOT_ADMIXTURE.out.admixture_html
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
 
-    //Admixture barplots
+    //NewHybrids pi trace plot
     NH_PLOT_TRACE(
         nh_trace
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_TRACE.out.plot_html)
     ch_versions = ch_versions.mix( NH_PLOT_TRACE.out.versions )
+
+    //NewHybrids classifications
+    nh_inputs = nh_results
+                .join(nh_map)
+                .combine(popmap)
+                .combine(speciesmap)
+                .map{ m, nr, nm, pm, p, sm, s -> tuple(m, nr, nm, p, s) }
+    NH_PLOT_CLASSIFICATIONS(
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nr) },
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nm) },
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, p) },
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, s) },
+    )
+    ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_CLASSIFICATIONS.out.plot_html)
+    ch_versions = ch_versions.mix( NH_PLOT_CLASSIFICATIONS.out.versions )
+
+    NH_SUMMARY_TABLE(
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nr) },
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nm) },
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, p) },
+        nh_inputs.map{m, nr, nm, p, s -> tuple(m, s) },
+    )
+    ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json)
+    ch_versions = ch_versions.mix( NH_SUMMARY_TABLE.out.versions )
 
     //
     // Collate and save software versions

@@ -66,9 +66,11 @@ workflow ADMIXPIPE {
     ch_versions = ch_versions.mix( CVSUM.out.versions )
 
     // Fetch results for the best K value
+    ch_bestk = CVSUM.out.cv_output
+                .join( DISTRUCT.out.best_results )
     BESTK(
-        CVSUM.out.cv_output,
-        DISTRUCT.out.best_results
+        ch_bestk.map { m, c, b -> [m, c] },
+        ch_bestk.map { m, c, b -> [m, b] }
     )
     ch_versions = ch_versions.mix( BESTK.out.versions )
 

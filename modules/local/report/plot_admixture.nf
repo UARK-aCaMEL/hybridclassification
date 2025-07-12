@@ -8,6 +8,7 @@ process PLOT_ADMIXTURE {
         tuple val(meta), path(clumppfile)
         tuple val(meta2), path(inds)
         tuple val(meta3), path(pops)
+        tuple val(meta4), path(candidates)
     output:
         tuple val(meta), path("${meta.id}_admixture_bestk_mqc.html"), emit: admixture_html
         path("versions.yml")   , emit: versions
@@ -21,6 +22,8 @@ process PLOT_ADMIXTURE {
         --pops ${pops} \\
         --template ${baseDir}/assets/multiqc_admixture_bestk.html \\
         --out "${meta.id}_admixture_bestk_mqc.html" \\
+        --order_cluster 1 \\
+        --candidates ${candidates} \\
         ${args}
 
     plotly_version=\$(python3 -c 'import plotly; print(plotly.__version__)')
