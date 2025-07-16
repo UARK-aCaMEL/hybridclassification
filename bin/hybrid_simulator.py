@@ -121,12 +121,12 @@ def main():
             bc1 = (np.random.rand(args.size_bc, L)<af1).astype(int) + \
                   (np.random.rand(args.size_bc, L)<pF1_hat).astype(int)
             cats = [
-                (pure0, f"{rep}_Pure_{args.p0}", f"Pure_{args.p0}"),
-                (pure1, f"{rep}_Pure_{args.p1}", f"Pure_{args.p1}"),
-                (f1,    f"{rep}_F1",              "F1"),
-                (f2,    f"{rep}_F2",              "F2"),
-                (bc0,   f"{rep}_BC_{args.p0}",     f"BC_{args.p0}"),
-                (bc1,   f"{rep}_BC_{args.p1}",     f"BC_{args.p1}"),
+                (pure0, f"SIM_{rep}_Pure_{args.p0}", f"Pure_{args.p0}"),
+                (pure1, f"SIM_{rep}_Pure_{args.p1}", f"Pure_{args.p1}"),
+                (f1,    f"SIM_{rep}_F1",              "F1"),
+                (f2,    f"SIM_{rep}_F2",              "F2"),
+                (bc0,   f"SIM_{rep}_BC-{args.p0}",     f"BC_{args.p0}"),
+                (bc1,   f"SIM_{rep}_BC-{args.p1}",     f"BC_{args.p1}"),
             ]
             for mat, sid_pref, pop_lbl in cats:
                 for i in range(mat.shape[0]):

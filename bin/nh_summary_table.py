@@ -30,7 +30,7 @@ def parse_html_header(path):
 
 def write_mqc_json(df, metadata, output):
     data = {
-        row['Group']: {k: v for k, v in row.items() if k != 'Group'}
+        row['Group']: {k: v for k, v in row.items() if k not in ('Group','N')}
         for _, row in df.iterrows()
     }
     pconfig = {
@@ -55,11 +55,15 @@ def main():
     p.add_argument('--speciesmap',  required=True, help='Sample→species TSV')
     p.add_argument('--template',    help='MultiQC HTML header')
     p.add_argument('--out',         required=True, help='Output path (tsv or JSON)')
+    p.add_argument('--threshold',   type=float, default=0.0,
+                     help='Minimum posterior probability for assignment; else Unassigned')
     args = p.parse_args()
 
     # read and merge inputs
     df_nh      = read_nh_results(args.result)
-    df_map, df_pop, df_spc = load_maps(args.result_map, args.popmap, args.speciesmap)
+    df_map, df_pop, df_spc = load_maps(
+        args.result_map, args.popmap, args.speciesmap
+    )
     df = (
         df_nh.drop(columns="Individual")
              .merge(df_map, on="Index")
@@ -67,32 +71,39 @@ def main():
              .merge(df_spc, on="Individual", how="left")
     )
 
+    # categories and hybrids definitions
     cats    = ["P0","P1","F1","F2","Bx0","Bx1"]
     hybrids = ["F1","F2","Bx0","Bx1"]
 
-    # assign each to highest-probability category
-    df["AssignedCategory"] = df[cats].idxmax(axis=1)
+    # assign each to highest-probability category, or Unassigned if <= threshold
+    # compute the max posterior per row
+    df['MaxProb'] = df[cats].max(axis=1)
+    # assign label
+    df['AssignedCategory'] = df[cats].idxmax(axis=1)
+    df.loc[df['MaxProb'] <= args.threshold, 'AssignedCategory'] = 'Unassigned'
 
     # species-level counts & proportions
     sp_counts = df.groupby("Species")["AssignedCategory"] \
                   .value_counts().unstack(fill_value=0)
     sp_n      = sp_counts.sum(axis=1)
     sp_prop   = sp_counts.div(sp_n, axis=0)
-    # ensure all categories present
-    for c in cats:
+    # ensure all categories present (including Unassigned)
+    all_cats = cats + ["Unassigned"]
+    for c in all_cats:
         if c not in sp_prop.columns:
             sp_prop[c] = 0.0
     sp_prop["Total_Hybrids"] = sp_prop[hybrids].sum(axis=1)
     sp_prop = sp_prop.reset_index().rename(columns={"Species":"Group"})
     sp_prop["N"] = sp_n.values.astype(int)
-    sp_prop = sp_prop[["Group","N"] + cats + ["Total_Hybrids"]]
+    # order columns: Group, N, P0..Bx1, Unassigned, Total_Hybrids
+    sp_prop = sp_prop[["Group","N"] + cats + ["Unassigned","Total_Hybrids"]]
 
     # population-level counts & proportions
     pop_counts = df.groupby(["Species","Population"])["AssignedCategory"] \
                    .value_counts().unstack(fill_value=0)
     pop_n      = pop_counts.sum(axis=1)
     pop_prop   = pop_counts.div(pop_n, axis=0)
-    for c in cats:
+    for c in all_cats:
         if c not in pop_prop.columns:
             pop_prop[c] = 0.0
     pop_prop["Total_Hybrids"] = pop_prop[hybrids].sum(axis=1)
@@ -101,12 +112,14 @@ def main():
     pop_n_df = pop_n.reset_index(name="N")
     pop_prop = pop_prop.merge(pop_n_df, on=["Species","Population"])
     pop_prop["N"] = pop_prop["N"].astype(int)
-    pop_prop = pop_prop[["Group","N"] + cats + ["Total_Hybrids"]]
+    pop_prop = pop_prop[["Group","N"] + cats + ["Unassigned","Total_Hybrids"]]
 
     # combine & format proportions to two decimals
     summary = pd.concat([sp_prop, pop_prop], ignore_index=True)
-    summary[cats + ["Total_Hybrids"]] = summary[cats + ["Total_Hybrids"]].round(2)
+    summary[cats + ["Unassigned","Total_Hybrids"]] = \
+        summary[cats + ["Unassigned","Total_Hybrids"]].round(2)
 
+    # write output
     if args.template:
         meta = parse_html_header(args.template)
         write_mqc_json(summary, meta, args.out)

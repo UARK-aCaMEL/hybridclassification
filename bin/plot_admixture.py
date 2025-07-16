@@ -99,7 +99,7 @@ def make_plot(df, out_html, template=None,
             showgrid=False
         ),
         margin=dict(t=60,b=60),
-        title=dict(text="ADMIXTURE Ancestry Barplot", x=0.5),
+        title=dict(text="", x=0.5),
         legend_title="Cluster",
         template="simple_white"
     )

@@ -21,6 +21,7 @@ process NH_SUMMARY_TABLE {
         --result_map ${nh_map} \\
         --popmap ${popmap} \\
         --speciesmap ${speciesmap} \\
+        --threshold ${params.prob_threshold} \\
         --template ${baseDir}/assets/multiqc_nh_summary.html \\
         --out "${meta.id}_nh_summary_mqc.json" \\
         ${args}

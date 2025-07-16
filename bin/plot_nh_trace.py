@@ -17,12 +17,12 @@ def make_trace_plot(df, output_html, burnin, template_file=None):
     fig = px.line(
         df_long,
         x='Iteration', y='Probability', color='Category',
-        title='NewHybrids PI Trace',
+        title='',
         template='simple_white'
     )
     fig.update_layout(
         xaxis_title='Iteration',
-        yaxis_title='π Probability',
+        yaxis_title='π',
         legend_title='Category',
         margin=dict(t=60, b=60)
     )

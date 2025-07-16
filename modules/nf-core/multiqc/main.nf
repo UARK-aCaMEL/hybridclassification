@@ -10,6 +10,11 @@ process MULTIQC {
     input:
     tuple val(meta), 
         path(plot1), 
+        path(plot2),
+        path(plot3),
+        path(plot4),
+        path(plot5),
+        path(plot6),
         path(workflow_summary),
         path(versions),
         path(methods_description)
@@ -34,7 +39,6 @@ process MULTIQC {
     """
     multiqc \\
         --force \\
-        --title ${meta.id} \\
         $args \\
         $config \\
         $extra_config \\

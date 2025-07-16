@@ -41,7 +41,7 @@ workflow PIPELINE_INITIALISATION {
     popmap            // string: path to popmap file
     speciesmap
     site_coords
-    species_meta
+    geo_data_config
     combinations
 
     main:
@@ -129,6 +129,25 @@ workflow PIPELINE_INITIALISATION {
         .set{ ch_speciesmap }
 
     //
+    // Channel for geo_data_config (optional)
+    //
+    if ( params.geo_data_config ) {
+        Channel
+            .fromPath( params.geo_data_config )
+            .map { file ->
+                def meta = [ id: file.simpleName ]
+                return [ meta, file ]
+            }
+            .set { ch_geo_data_config }
+    }
+    else {
+        Channel
+            .empty()
+            .set { ch_geo_data_config }
+    }
+
+
+    //
     // Channel for site_coords (optional)
     //
     if ( params.site_coords ) {
@@ -144,24 +163,6 @@ workflow PIPELINE_INITIALISATION {
         Channel
             .empty()
             .set { ch_site_coords }
-    }
-
-    //
-    // Channel for species_meta (optional)
-    //
-    if ( params.species_meta ) {
-        Channel
-            .fromPath( params.species_meta )
-            .map { file ->
-                def meta = [ id: file.simpleName ]
-                return [ meta, file ]
-            }
-            .set { ch_species_meta }
-    }
-    else {
-        Channel
-            .empty()
-            .set { ch_species_meta }
     }
 
     //
@@ -191,7 +192,7 @@ workflow PIPELINE_INITIALISATION {
     popmap    = ch_popmap
     speciesmap = ch_speciesmap
     site_coords = ch_site_coords
-    species_meta = ch_species_meta
+    geo_data    = ch_geo_data_config
     combinations = ch_combinations
     versions  = ch_versions
 }

@@ -112,7 +112,7 @@ if __name__=="__main__":
     p.add_argument("--popmap",     required=True, help="Sample→population TSV")
     p.add_argument("--speciesmap", required=True, help="Sample→species TSV")
     p.add_argument("--template",   help="HTML header to prepend")
-    p.add_argument("--palette",    default="Viridis", help="plotly.colors palette")
+    p.add_argument("--palette",    default="Spectral", help="plotly.colors palette")
     p.add_argument("--out",        required=True, help="Output HTML file")
 
     args = p.parse_args()

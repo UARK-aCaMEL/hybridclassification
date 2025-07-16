@@ -8,6 +8,8 @@ include { PLOT_ADMIXTURE } from '../../modules/local/report/plot_admixture.nf'
 include { NH_PLOT_CLASSIFICATIONS } from '../../modules/local/report/plot_newhybrids.nf'
 include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
 include { NH_SUMMARY_TABLE } from '../../modules/local/report/newhybrids_summary.nf'
+include { NH_PLOT_SIMULATION } from '../../modules/local/report/newhybrids_simulation.nf'
+include { NH_PLOT_SPATIAL } from '../../modules/local/report/plot_newhybrids_spatial.nf'
 
 workflow GENERATE_REPORT {
     take:
@@ -18,9 +20,14 @@ workflow GENERATE_REPORT {
     nh_results
     nh_trace
     nh_map
+    sim_results
+    sim_trace
+    sim_map
     candidate_map
     popmap
     speciesmap
+    site_coords
+    geo_data
     ch_versions
 
     main:
@@ -41,6 +48,16 @@ workflow GENERATE_REPORT {
     )
     ch_multiqc_files = PLOT_ADMIXTURE.out.admixture_html
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
+
+    // Power analysis plots
+    sim_input = sim_results
+                .join(sim_map)
+    NH_PLOT_SIMULATION(
+        sim_input.map{ m, si, sm -> tuple(m, si) },
+        sim_input.map{ m, si, sm -> tuple(m, sm) }
+    )
+    ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SIMULATION.out.plot_html)
+    ch_versions = ch_versions.mix( NH_PLOT_SIMULATION.out.versions )
 
     //NewHybrids pi trace plot
     NH_PLOT_TRACE(
@@ -72,6 +89,47 @@ workflow GENERATE_REPORT {
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json)
     ch_versions = ch_versions.mix( NH_SUMMARY_TABLE.out.versions )
+
+    //
+    // Map of newhybrids results
+    //
+    if (params.site_coords){
+        if (params.geo_data_config){
+            ch_spatial_inputs = nh_results
+                                .join( nh_map )
+                                .combine( popmap )
+                                .combine( site_coords )
+                                .combine( geo_data )
+                                .map{
+                                    m, nr, nm, mp, p, ms, s, mg, g -> tuple( m, nr, nm, p, s, g )
+                                }
+            NH_PLOT_SPATIAL(
+                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, nr) },
+                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, nm) },
+                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, p) },
+                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, s) },
+                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, g) }
+            )
+            ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SPATIAL.out.plot_html)
+            ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )
+        } else {
+            ch_spatial_inputs = nh_results
+                .join( nh_map )
+                .combine( popmap )
+                .combine( site_coords )
+                .map { m, nr, nm, mp, p, ms, s -> tuple( m, nr, nm, p, s) }
+            NH_PLOT_SPATIAL(
+                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, nr) },
+                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, nm) },
+                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, p) },
+                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, s) },
+                tuple( [], [] )
+            )
+            ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SPATIAL.out.plot_html)
+            ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )
+        }
+    }
+    ch_multiqc_files.view()
 
     //
     // Collate and save software versions
@@ -115,7 +173,6 @@ workflow GENERATE_REPORT {
         .combine(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true)
     )
 
-    ch_multiqc_files.view()
     MULTIQC (
         ch_multiqc_files,
         ch_multiqc_config.toList(),
