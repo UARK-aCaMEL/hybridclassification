@@ -8,10 +8,10 @@ process CUSTOMIZE_REPORT {
         'biocontainers/gawk:5.1.0' }"
 
     input:
-        path(in_report), stageAs: "in_report.html"
+        tuple val(meta), path(in_report)
 
     output:
-        path("multiqc_report.html"), emit: report
+        tuple val(meta), path("*multiqc_report.html"), emit: report
 
     script:
     """
@@ -28,10 +28,10 @@ process CUSTOMIZE_REPORT {
         /<h1 id="page_title">/ {print "_HEADER_REPLACEMENT_"; in_block=1; next}
         /<\\/h1>/ && in_block {in_block=0; next}
         !in_block {print}
-    ' in_report.html | sed -e "/_HEADER_REPLACEMENT_/ {
+    ' ${in_report} | sed -e "/_HEADER_REPLACEMENT_/ {
         r new_header.html
         d
-    }" > multiqc_report.html
+    }" > ${meta.id}_multiqc_report.html
 
     rm new_header.html
     """

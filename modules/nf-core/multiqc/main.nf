@@ -14,7 +14,6 @@ process MULTIQC {
         path(plot3),
         path(plot4),
         path(plot5),
-        path(plot6),
         path(workflow_summary),
         path(versions),
         path(methods_description)
@@ -23,7 +22,7 @@ process MULTIQC {
     path(multiqc_logo)
 
     output:
-    path "*multiqc_report.html", emit: report
+    tuple val(meta), path("*multiqc_report.html"), emit: report
     path "*_data"              , emit: data
     path "*_plots"             , optional:true, emit: plots
     path "versions.yml"        , emit: versions

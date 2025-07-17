@@ -40,8 +40,23 @@ def load_coords(path):
 
 
 def merge_coords(df, coords):
-    a = df.merge(coords, left_on="Individual", right_on="ID", how="left")
-    return a if a["Latitude"].notna().all() else df.merge(coords, left_on="Population", right_on="ID")
+    """
+    Attach coordinates to each row, preferring the join that yields the
+    greatest number of non‑missing Latitude/Longitude values.
+
+    1. Try an Individual‑level join.
+    2. Try a Population‑level join.
+    3. Keep whichever join produces MORE successful coordinate matches.
+    """
+    by_ind = df.merge(coords, left_on="Individual",  right_on="ID", how="left")
+    by_pop = df.merge(coords, left_on="Population",  right_on="ID", how="left")
+
+    good_ind = by_ind["Latitude"].notna().sum()
+    good_pop = by_pop["Latitude"].notna().sum()
+
+    best = by_ind if good_ind >= good_pop else by_pop
+    # Drop rows that still lack coordinates so they never reach plotting
+    return best.dropna(subset=["Latitude", "Longitude"])
 
 
 def aggregate_sites(df_nh, df_map, df_pop, coords, base_cats, th):
@@ -58,7 +73,6 @@ def aggregate_sites(df_nh, df_map, df_pop, coords, base_cats, th):
         return base_cats[ok.argmax()] if ok.sum() == 1 else "Unclassified"
 
     df["Class"] = df.apply(classify, axis=1)
-    df = df.dropna(subset=["Latitude", "Longitude"])
 
     counts = (
         df.groupby(["ID", "Latitude", "Longitude", "Class"], as_index=False)
@@ -149,15 +163,12 @@ def main():
     base_cats = ["P0", "Bx0", "F1", "F2", "Bx1", "P1"]
     cats = base_cats + ["Unclassified"]
 
-    df_sites = (
-        aggregate_sites(
-            read_nh_results(args.result),
-            *load_maps(args.result_map, args.popmap),
-            load_coords(args.site_coords),
-            base_cats,
-            args.threshold,
-        )
-        .dropna(subset=["Latitude", "Longitude"])
+    df_sites = aggregate_sites(
+        read_nh_results(args.result),
+        *load_maps(args.result_map, args.popmap),
+        load_coords(args.site_coords),
+        base_cats,
+        args.threshold,
     )
 
     if df_sites.empty:

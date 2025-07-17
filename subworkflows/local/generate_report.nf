@@ -10,6 +10,7 @@ include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
 include { NH_SUMMARY_TABLE } from '../../modules/local/report/newhybrids_summary.nf'
 include { NH_PLOT_SIMULATION } from '../../modules/local/report/newhybrids_simulation.nf'
 include { NH_PLOT_SPATIAL } from '../../modules/local/report/plot_newhybrids_spatial.nf'
+include { CUSTOMIZE_REPORT } from '../../modules/local/report/customize_report.nf'
 
 workflow GENERATE_REPORT {
     take:
@@ -178,6 +179,10 @@ workflow GENERATE_REPORT {
         ch_multiqc_config.toList(),
         ch_multiqc_custom_config.toList(),
         ch_multiqc_logo.toList()
+    )
+
+    CUSTOMIZE_REPORT(
+        MULTIQC.out.report
     )
 
     emit:
