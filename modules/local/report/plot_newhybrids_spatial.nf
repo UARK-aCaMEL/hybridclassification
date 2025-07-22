@@ -17,7 +17,7 @@ process NH_PLOT_SPATIAL {
 
     script:
     def args   = task.ext.args ?: ''
-    def geo_data_arg = geo_data ? "--geo_data_json ${geo_data}" : ''
+    def geo_data_arg = geo_data ? "--geo_data_json ${geo_data}/config.json" : ''
     """
     plot_nh_spatial.py \\
         --result ${nh_results} \\

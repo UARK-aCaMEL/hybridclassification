@@ -25,6 +25,7 @@ workflow HYBRIDCLASSIFICATION {
     ch_speciesmap // [meta, speciesmap]
     ch_site_coords
     ch_geo_data
+    ch_geo_data_dir
     ch_combinations
 
     main:
@@ -123,11 +124,15 @@ workflow HYBRIDCLASSIFICATION {
         NEWHYBRIDS.out.sim_result,
         NEWHYBRIDS.out.sim_trace,
         NEWHYBRIDS.out.sim_map,
+        NEWHYBRIDS.out.triangle_popmap,
+        NEWHYBRIDS.out.triangle_hindex,
+        NEWHYBRIDS.out.triangle_hindex_fixed,
         FIND_CANDIDATES.out.popmap,
         ch_popmap,
         ch_speciesmap,
         ch_site_coords,
         ch_geo_data,
+        ch_geo_data_dir,
         ch_versions
     )
 

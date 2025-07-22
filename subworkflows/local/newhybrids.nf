@@ -11,6 +11,7 @@ include { VCF_TO_NEWHYBRIDS as PREPARE_NEWHYBRIDS } from '../../modules/local/vc
 include { SIMULATE_HYBRIDS } from '../../modules/local/hybrid_simulator.nf'
 include { RUN_NEWHYBRIDS as POWER_ANALYSIS } from '../../modules/local/newhybrids.nf'
 include { RUN_NEWHYBRIDS } from '../../modules/local/newhybrids.nf'
+include { TRIANGLE_METRICS } from '../../modules/local/triangle_metrics.nf'
 
 workflow NEWHYBRIDS {
     take:
@@ -71,6 +72,13 @@ workflow NEWHYBRIDS {
         ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, sim_vcf] },
     )
 
+    // Compute triangle metrics for simulated hybrids
+    TRIANGLE_METRICS(
+        ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, vcf_file] },
+        ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, popmap_file] },
+        ch_prep_sim.map { meta, vcf_file, popmap_file, sim_vcf -> [meta, sim_vcf] },
+    )
+
     //
     // Run NewHybrids for the power analysis
     //
@@ -105,4 +113,7 @@ workflow NEWHYBRIDS {
     nh_trace     = RUN_NEWHYBRIDS.out.pi_trace
     nh_map       = PREPARE_NEWHYBRIDS.out.index_map
     nh_result    = RUN_NEWHYBRIDS.out.pofz
+    triangle_popmap = TRIANGLE_METRICS.out.popmap
+    triangle_hindex = TRIANGLE_METRICS.out.hindex
+    triangle_hindex_fixed = TRIANGLE_METRICS.out.hindex_fixed
 }

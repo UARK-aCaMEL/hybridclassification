@@ -42,6 +42,7 @@ workflow PIPELINE_INITIALISATION {
     speciesmap
     site_coords
     geo_data_config
+    geo_data_dir
     combinations
 
     main:
@@ -148,6 +149,22 @@ workflow PIPELINE_INITIALISATION {
 
 
     //
+    // Channel for a *pre‑staged* geodata directory (optional)
+    //
+    if ( params.geo_data_dir ) {
+        Channel
+            .fromPath( params.geo_data_dir )      // accepts dir or wildcard
+            .map { dir ->
+                def meta = [ id: file(dir).getBaseName() ]
+                return [ meta, dir ]
+            }
+            .set { ch_geo_data_dir }
+    }
+    else {
+        Channel.empty().set { ch_geo_data_dir }
+    }
+
+    //
     // Channel for site_coords (optional)
     //
     if ( params.site_coords ) {
@@ -193,6 +210,7 @@ workflow PIPELINE_INITIALISATION {
     speciesmap = ch_speciesmap
     site_coords = ch_site_coords
     geo_data    = ch_geo_data_config
+    geo_data_dir = ch_geo_data_dir
     combinations = ch_combinations
     versions  = ch_versions
 }

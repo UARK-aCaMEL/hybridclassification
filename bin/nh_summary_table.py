@@ -2,6 +2,7 @@
 import pandas as pd
 import json
 import argparse
+import numpy as np
 import re
 from pathlib import Path
 
@@ -57,6 +58,8 @@ def main():
     p.add_argument('--out',         required=True, help='Output path (tsv or JSON)')
     p.add_argument('--threshold',   type=float, default=0.0,
                      help='Minimum posterior probability for assignment; else Unassigned')
+    p.add_argument('--list', help='Optional output path for list of individuals classified as hybrids')
+
     args = p.parse_args()
 
     # read and merge inputs
@@ -125,6 +128,17 @@ def main():
         write_mqc_json(summary, meta, args.out)
     else:
         summary.to_csv(args.out, sep="\t", index=False, float_format="%.2f")
+
+    # optionally write list of classified hybrids
+    if args.list:
+        is_hybrid = df["AssignedCategory"].isin(hybrids)
+        hybrid_df = df[is_hybrid].copy()
+        hybrid_df["Prob"] = hybrid_df.apply(
+            lambda r: r.get(r["AssignedCategory"], np.nan),
+            axis=1
+        )
+        hybrid_df = hybrid_df[hybrid_df["Prob"] > args.threshold]
+        hybrid_df["Individual"].to_csv(args.list, index=False, header=False)
 
 if __name__ == '__main__':
     main()

@@ -11,6 +11,7 @@ process NH_SUMMARY_TABLE {
         tuple val(meta4), path(speciesmap)
     output:
         tuple val(meta), path("${meta.id}_nh_summary_mqc.json"), emit: table_json
+        tuple val(meta), path("${meta.id}_nh_hybrids.txt"), emit: hybrid_list
         path("versions.yml")   , emit: versions
 
     script:
@@ -24,6 +25,7 @@ process NH_SUMMARY_TABLE {
         --threshold ${params.prob_threshold} \\
         --template ${baseDir}/assets/multiqc_nh_summary.html \\
         --out "${meta.id}_nh_summary_mqc.json" \\
+        --list "${meta.id}_nh_hybrids.txt" \\
         ${args}
 
     plotly_version=\$(python3 -c 'import plotly; print(plotly.__version__)')

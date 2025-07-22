@@ -7,6 +7,13 @@ Spatial map of NewHybrids results
 * Legend for class colours and pie‑size scale
 * Hover tooltip shows N + counts per class
 * Writes an optional site‑summary TSV
+
+New option
+----------
+--basemap  Name of the Leaflet/xyzservices tile layer (default
+           'Esri.NatGeoWorldMap').  Any string accepted by
+           folium.Map(tiles=...) is valid, e.g. 'CartoDB Positron',
+           'OpenStreetMap', or a custom tile URL.
 """
 
 import geopandas as gpd
@@ -17,6 +24,7 @@ import matplotlib.pyplot as plt
 import plotly.express as px
 import argparse, json, io, base64, re
 from pathlib import Path
+import numpy as np
 
 
 # ───────────────────────── helpers ─────────────────────────
@@ -40,22 +48,9 @@ def load_coords(path):
 
 
 def merge_coords(df, coords):
-    """
-    Attach coordinates to each row, preferring the join that yields the
-    greatest number of non‑missing Latitude/Longitude values.
-
-    1. Try an Individual‑level join.
-    2. Try a Population‑level join.
-    3. Keep whichever join produces MORE successful coordinate matches.
-    """
-    by_ind = df.merge(coords, left_on="Individual",  right_on="ID", how="left")
-    by_pop = df.merge(coords, left_on="Population",  right_on="ID", how="left")
-
-    good_ind = by_ind["Latitude"].notna().sum()
-    good_pop = by_pop["Latitude"].notna().sum()
-
-    best = by_ind if good_ind >= good_pop else by_pop
-    # Drop rows that still lack coordinates so they never reach plotting
+    by_ind = df.merge(coords, left_on="Individual", right_on="ID", how="left")
+    by_pop = df.merge(coords, left_on="Population", right_on="ID", how="left")
+    best   = by_ind if by_ind["Latitude"].notna().sum() >= by_pop["Latitude"].notna().sum() else by_pop
     return best.dropna(subset=["Latitude", "Longitude"])
 
 
@@ -148,16 +143,15 @@ def main():
     ap.add_argument("--popmap", required=True)
     ap.add_argument("--site_coords", required=True)
     ap.add_argument("--threshold", type=float, default=0.5)
-    ap.add_argument("--geo_data_json", help="JSON list of overlay layers")
+    ap.add_argument("--geo_data_json")
     ap.add_argument("--template", help="HTML header template to prepend")
-    ap.add_argument("--out", required=True, help="Output HTML file")
+    ap.add_argument("--out", required=True)
     ap.add_argument("--palette", default="Spectral")
     ap.add_argument("--min_pie_px", type=int, default=20)
     ap.add_argument("--max_pie_px", type=int, default=80)
-    ap.add_argument(
-        "--table_out",
-        help="Write site summary TSV (default: <out>.tsv)",
-    )
+    ap.add_argument("--basemap", default="Esri.NatGeoWorldMap",
+                    help="Leaflet/xyzservices tile layer (default: Esri.NatGeoWorldMap)")
+    ap.add_argument("--table_out", help="Write site summary TSV (default: <out>.tsv)")
     args = ap.parse_args()
 
     base_cats = ["P0", "Bx0", "F1", "F2", "Bx1", "P1"]
@@ -170,50 +164,46 @@ def main():
         base_cats,
         args.threshold,
     )
-
     if df_sites.empty:
         raise ValueError("No valid site coordinates found")
 
-    # ── optional table ‑‑──────────────────────────────────
-    table_path = (
-        Path(args.table_out)
-        if args.table_out
-        else Path(args.out).with_suffix(".tsv")
-    )
+    # ---- optional TSV ---------------------------------------------------
+    tsv_path = Path(args.table_out) if args.table_out else Path(args.out).with_suffix(".tsv")
     cols_order = ["ID", "Latitude", "Longitude", "total"] + cats
-    df_sites[cols_order].to_csv(table_path, sep="\t", index=False)
-    print(f"✅ Site summary TSV saved to: {table_path}")
+    df_sites[cols_order].to_csv(tsv_path, sep="\t", index=False)
+    print(f"✅ Site summary TSV saved to: {tsv_path}")
 
-    # ── Folium map ─────────────────────────────────────────
-    m = folium.Map(
-        location=[df_sites.Latitude.mean(), df_sites.Longitude.mean()],
-        zoom_start=6,
-        tiles="CartoDB Positron",
-        control_scale=True,
-        zoom_control=False,
-        width="100%",
-        height="100%",
-    )
+    # ---- Folium map -----------------------------------------------------
+    try:
+        m = folium.Map(
+            location=[df_sites.Latitude.mean(), df_sites.Longitude.mean()],
+            zoom_start=6,
+            tiles=args.basemap,
+            control_scale=True,
+            zoom_control=False,
+            width="100%",
+            height="100%",
+        )
+    except Exception as e:
+        print(f"⚠️  Could not load basemap '{args.basemap}' ({e}); falling back to CartoDB Positron.")
+        m = folium.Map(
+            location=[df_sites.Latitude.mean(), df_sites.Longitude.mean()],
+            zoom_start=6, tiles="CartoDB Positron",
+            control_scale=True, zoom_control=False,
+            width="100%", height="100%",
+        )
 
-    m.get_root().header.add_child(
-        Element(
-            """
-            <style>
-              html,body,#map{height:100%!important;margin:0;}
-              .leaflet-control-zoomslider,
-              .leaflet-control-zoom{display:none!important;}
-              .leaflet-control-scale{background:rgba(255,255,255,0.9);font-size:10px;}
-              #map{border:2px solid #000;}
-            </style>
-            """
-        )
-    )
-    m.get_root().html.add_child(
-        Element(
-            '<div style="position:absolute;top:8px;right:10px;z-index:999;'
-            'font-size:1.2em;">↑ N</div>'
-        )
-    )
+    # minimal styling tweaks
+    m.get_root().header.add_child(Element("""
+        <style>
+          html,body,#map{height:100%!important;margin:0;}
+          .leaflet-control-zoomslider,.leaflet-control-zoom{display:none!important;}
+          .leaflet-control-scale{background:rgba(255,255,255,0.9);font-size:10px;}
+          #map{border:2px solid #000;}
+        </style>"""))
+    m.get_root().html.add_child(Element(
+        '<div style="position:absolute;top:8px;right:10px;z-index:999;font-size:1.2em;">↑ N</div>'
+    ))
 
     # overlays in z‑order
     for layer in load_overlays(args.geo_data_json):
@@ -226,27 +216,19 @@ def main():
         ).add_to(m)
 
     # auto‑zoom
-    m.fit_bounds(
-        [
-            [df_sites.Latitude.min(), df_sites.Longitude.min()],
-            [df_sites.Latitude.max(), df_sites.Longitude.max()],
-        ]
-    )
+    m.fit_bounds([
+        [df_sites.Latitude.min(), df_sites.Longitude.min()],
+        [df_sites.Latitude.max(), df_sites.Longitude.max()],
+    ])
 
-    # markers
+    # pie markers
     colors = palette(args.palette, len(base_cats)) + ["#808080"]
-    max_n = df_sites["total"].max()
-    min_n = df_sites["total"].min()
+    max_n, min_n = df_sites["total"].max(), df_sites["total"].min()
 
     for _, row in df_sites.iterrows():
-        scale = (row["total"] / max_n) ** 0.5
-        px_size = int(
-            args.min_pie_px + (args.max_pie_px - args.min_pie_px) * scale
-        )
-        tooltip = (
-            f"{row.ID} (N={int(row['total'])}): "
-            + ", ".join(f"{c}={int(row[c])}" for c in cats)
-        )
+        scale = np.sqrt(row["total"] / max_n)
+        px_size = int(args.min_pie_px + (args.max_pie_px - args.min_pie_px) * scale)
+        tooltip = f"{row.ID} (N={int(row['total'])}): " + ", ".join(f"{c}={int(row[c])}" for c in cats)
         folium.Marker(
             [row.Latitude, row.Longitude],
             icon=folium.CustomIcon(
@@ -257,56 +239,31 @@ def main():
         ).add_to(m)
 
     # legend
-    def marker_dim(n):
-        return int(
-            args.min_pie_px
-            + (args.max_pie_px - args.min_pie_px) * ((n / max_n) ** 0.5)
-        ) // 2
+    def marker_dim(n):  # visible diameter
+        return int(args.min_pie_px + (args.max_pie_px - args.min_pie_px) * np.sqrt(n / max_n)) // 2
 
-    size_refs = [
-        (min_n, f"{min_n} sample" if min_n == 1 else f"{min_n} samples"),
-        (max_n, f"{max_n} samples"),
-    ]
+    size_refs = [(min_n, f"{min_n} sample" if min_n == 1 else f"{min_n} samples"),
+                 (max_n, f"{max_n} samples")]
     size_items = ""
     for n, lbl in size_refs:
-        marker_d   = marker_dim(n)        # visible pie diameter
-        svg_dim    = marker_d + 6         # add margin for the circle
-        radius     = marker_d // 2
-        size_items += (
-            f'<div style="display:flex;align-items:center;margin-bottom:2px;">'
-            f'  <svg width="{svg_dim}" height="{svg_dim}" style="margin-right:6px;">'
-            f'    <circle cx="{svg_dim//2}" cy="{svg_dim//2}" r="{radius}" fill="#999"/></svg>{lbl}'
-            f'</div>'
-        )
-    class_items = "".join(
-        f'<div style="margin-bottom:2px;">'
-        f'<i style="background:{col};display:inline-block;width:12px;'
-        f'height:12px;margin-right:6px;"></i>{cat}</div>'
-        for cat, col in zip(cats, colors)
-    )
-    legend_html = (
-        '<div style="border:1px solid #ccc;padding:10px;background:#f8f8f8;'
-        'font-size:0.9em;">'
-        "<b>Class</b>"
-        + class_items
-        + '<hr style="margin:6px 0;"><b>Pie size</b>'
-        + size_items
-        + "</div>"
-    )
+        d = marker_dim(n); svg = d + 6
+        size_items += (f'<div style="display:flex;align-items:center;margin-bottom:2px;">'
+                       f'<svg width="{svg}" height="{svg}" style="margin-right:6px;">'
+                       f'<circle cx="{svg//2}" cy="{svg//2}" r="{d//2}" fill="#999"/></svg>{lbl}</div>')
+    class_items = "".join(f'<div style="margin-bottom:2px;">'
+                          f'<i style="background:{col};display:inline-block;width:12px;height:12px;margin-right:6px;"></i>{cat}</div>'
+                          for cat, col in zip(cats, colors))
+    legend_html = (f'<div style="border:1px solid #ccc;padding:10px;background:#f8f8f8;font-size:0.9em;">'
+                   f'<b>Class</b>{class_items}<hr style="margin:6px 0;"><b>Pie size</b>{size_items}</div>')
 
-    # wrap map + legend
-    snippet = m._repr_html_()
-    wrapped = f"""
-    <div style="border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:1em;
-                display:flex;flex-wrap:wrap;">
-        <div style="flex:1 1 500px;min-width:400px;">{snippet}</div>
-        <div style="flex:0 0 250px;margin-left:20px;">{legend_html}</div>
-    </div>
-    """
+    wrapped = (f'<div style="border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:1em;'
+               f'display:flex;flex-wrap:wrap;">'
+               f'<div style="flex:1 1 500px;min-width:400px;">{m._repr_html_()}</div>'
+               f'<div style="flex:0 0 250px;margin-left:20px;">{legend_html}</div></div>')
 
     header = Path(args.template).read_text() if args.template else ""
     Path(args.out).write_text(header + wrapped)
-    print(f"✅ Spatial map saved to: {args.out}")
+    print(f"✅ Spatial map saved → {args.out}")
 
 
 if __name__ == "__main__":

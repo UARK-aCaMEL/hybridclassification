@@ -10,7 +10,9 @@ include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
 include { NH_SUMMARY_TABLE } from '../../modules/local/report/newhybrids_summary.nf'
 include { NH_PLOT_SIMULATION } from '../../modules/local/report/newhybrids_simulation.nf'
 include { NH_PLOT_SPATIAL } from '../../modules/local/report/plot_newhybrids_spatial.nf'
+include { PLOT_TRIANGLE } from '../../modules/local/report/plot_triangle.nf'
 include { CUSTOMIZE_REPORT } from '../../modules/local/report/customize_report.nf'
+include { STAGE_GEODATA_LAYERS } from '../../modules/local/report/stage_geodata.nf'
 
 workflow GENERATE_REPORT {
     take:
@@ -24,11 +26,15 @@ workflow GENERATE_REPORT {
     sim_results
     sim_trace
     sim_map
+    triangle_popmap
+    triangle_hindex
+    triangle_hindex_fixed
     candidate_map
     popmap
     speciesmap
     site_coords
     geo_data
+    geo_data_dir
     ch_versions
 
     main:
@@ -49,6 +55,20 @@ workflow GENERATE_REPORT {
     )
     ch_multiqc_files = PLOT_ADMIXTURE.out.admixture_html
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
+
+    //Triangle plot
+    tri_input = triangle_hindex
+                    .join( triangle_hindex_fixed )
+                    .join( triangle_popmap )
+                    .combine( popmap )
+                    .map{ m, th, thf, tp, mp, p -> tuple(m, th, thf, tp, p) }
+    PLOT_TRIANGLE(
+        tri_input.map{ m, th, thf, tp, p -> tuple(m, th) },
+        tri_input.map{ m, th, thf, tp, p -> tuple(m, thf) },
+        tri_input.map{ m, th, thf, tp, p -> tuple(m, tp) },
+        tri_input.map{ m, th, thf, tp, p -> tuple(m, p) }
+    )
+    ch_multiqc_files = ch_multiqc_files.join(PLOT_TRIANGLE.out.plot_html)
 
     // Power analysis plots
     sim_input = sim_results
@@ -96,11 +116,14 @@ workflow GENERATE_REPORT {
     //
     if (params.site_coords){
         if (params.geo_data_config){
+
+            STAGE_GEODATA_LAYERS( geo_data, geo_data_dir )
+
             ch_spatial_inputs = nh_results
                                 .join( nh_map )
                                 .combine( popmap )
                                 .combine( site_coords )
-                                .combine( geo_data )
+                                .combine( STAGE_GEODATA_LAYERS.out.geo_data_dir )
                                 .map{
                                     m, nr, nm, mp, p, ms, s, mg, g -> tuple( m, nr, nm, p, s, g )
                                 }
