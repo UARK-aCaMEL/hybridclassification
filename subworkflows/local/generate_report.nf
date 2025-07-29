@@ -124,8 +124,10 @@ workflow GENERATE_REPORT {
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, nm) },
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, p) },
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, s) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, ms) }
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json)
+    ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json_masked)
     ch_versions = ch_versions.mix( NH_SUMMARY_TABLE.out.versions )
 
     //

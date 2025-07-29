@@ -17,6 +17,7 @@ process MULTIQC {
         path(plot6),
         path(plot7),
         path(plot8),
+        path(plot9), 
         path(workflow_summary),
         path(versions),
         path(methods_description)
