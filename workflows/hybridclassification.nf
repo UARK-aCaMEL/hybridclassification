@@ -127,6 +127,7 @@ workflow HYBRIDCLASSIFICATION {
         NEWHYBRIDS.out.triangle_popmap,
         NEWHYBRIDS.out.triangle_hindex,
         NEWHYBRIDS.out.triangle_hindex_fixed,
+        NEWHYBRIDS.out.masked_samples,
         FIND_CANDIDATES.out.popmap,
         ch_popmap,
         ch_speciesmap,

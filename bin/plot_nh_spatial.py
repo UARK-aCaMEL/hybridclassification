@@ -14,6 +14,10 @@ New option
            'Esri.NatGeoWorldMap').  Any string accepted by
            folium.Map(tiles=...) is valid, e.g. 'CartoDB Positron',
            'OpenStreetMap', or a custom tile URL.
+
+--mask     File listing individuals to mask (one per line).  Masked
+           samples will be forced into the Unclassified category in
+           the "Masked view" layer.
 """
 
 import geopandas as gpd
@@ -54,7 +58,7 @@ def merge_coords(df, coords):
     return best.dropna(subset=["Latitude", "Longitude"])
 
 
-def aggregate_sites(df_nh, df_map, df_pop, coords, base_cats, th):
+def aggregate_sites(df_nh, df_map, df_pop, coords, base_cats, th, mask_ids=None):
     df = (
         df_nh.drop(columns="Individual")
         .merge(df_map, on="Index")
@@ -64,6 +68,9 @@ def aggregate_sites(df_nh, df_map, df_pop, coords, base_cats, th):
     df[base_cats] = df[base_cats].apply(pd.to_numeric, errors="coerce")
 
     def classify(r):
+        # if this sample is masked, always Unclassified
+        if mask_ids and r["Individual"] in mask_ids:
+            return "Unclassified"
         ok = r[base_cats] >= th
         return base_cats[ok.argmax()] if ok.sum() == 1 else "Unclassified"
 
@@ -135,7 +142,6 @@ def load_overlays(json_path):
     return sorted(data, key=lambda d: int(d.get("z_order", 0)))
 
 
-# ───────────────────────── main ─────────────────────────
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--result", required=True)
@@ -147,25 +153,42 @@ def main():
     ap.add_argument("--template", help="HTML header template to prepend")
     ap.add_argument("--out", required=True)
     ap.add_argument("--palette", default="Spectral")
-    ap.add_argument("--min_pie_px", type=int, default=20)
-    ap.add_argument("--max_pie_px", type=int, default=80)
-    ap.add_argument("--basemap", default="Esri.NatGeoWorldMap",
-                    help="Leaflet/xyzservices tile layer (default: Esri.NatGeoWorldMap)")
+    ap.add_argument("--min_pie_px", type=int, default=10)
+    ap.add_argument("--max_pie_px", type=int, default=40)
+    ap.add_argument(
+        "--basemap", default="Esri.NatGeoWorldMap",
+        help="Leaflet/xyzservices tile layer (default: Esri.NatGeoWorldMap)"
+    )
     ap.add_argument("--table_out", help="Write site summary TSV (default: <out>.tsv)")
+    ap.add_argument("--mask", help="File listing individuals to mask (one per line)")
     args = ap.parse_args()
 
-    base_cats = ["P0", "Bx0", "F1", "F2", "Bx1", "P1"]
-    cats = base_cats + ["Unclassified"]
+    # ── read in everything once ──────────────────────────────────────────
+    df_nh         = read_nh_results(args.result)
+    df_map, df_pop = load_maps(args.result_map, args.popmap)
+    coords        = load_coords(args.site_coords)
+    base_cats     = ["P0", "Bx0", "F1", "F2", "Bx1", "P1"]
+    cats          = base_cats + ["Unclassified"]
 
+    # ── load mask list, if any ──────────────────────────────────────────
+    mask_ids = set()
+    if args.mask:
+        mask_ids = set(Path(args.mask).read_text().split())
+
+    # ── aggregate default sites ─────────────────────────────────────────
     df_sites = aggregate_sites(
-        read_nh_results(args.result),
-        *load_maps(args.result_map, args.popmap),
-        load_coords(args.site_coords),
-        base_cats,
-        args.threshold,
+        df_nh, df_map, df_pop, coords, base_cats, args.threshold
     )
     if df_sites.empty:
         raise ValueError("No valid site coordinates found")
+
+    # ── aggregate masked sites ──────────────────────────────────────────
+    df_sites_masked = None
+    if mask_ids:
+        df_sites_masked = aggregate_sites(
+            df_nh, df_map, df_pop, coords, base_cats, args.threshold,
+            mask_ids=mask_ids
+        )
 
     # ---- optional TSV ---------------------------------------------------
     tsv_path = Path(args.table_out) if args.table_out else Path(args.out).with_suffix(".tsv")
@@ -188,9 +211,12 @@ def main():
         print(f"⚠️  Could not load basemap '{args.basemap}' ({e}); falling back to CartoDB Positron.")
         m = folium.Map(
             location=[df_sites.Latitude.mean(), df_sites.Longitude.mean()],
-            zoom_start=6, tiles="CartoDB Positron",
-            control_scale=True, zoom_control=False,
-            width="100%", height="100%",
+            zoom_start=6,
+            tiles="CartoDB Positron",
+            control_scale=True,
+            zoom_control=False,
+            width="100%",
+            height="100%",
         )
 
     # minimal styling tweaks
@@ -221,14 +247,19 @@ def main():
         [df_sites.Latitude.max(), df_sites.Longitude.max()],
     ])
 
-    # pie markers
+    # ---- PIE MARKERS IN TWO LAYERS --------------------------------------
     colors = palette(args.palette, len(base_cats)) + ["#808080"]
     max_n, min_n = df_sites["total"].max(), df_sites["total"].min()
 
+    # original layer
+    orig_layer = folium.FeatureGroup(name="Default view", show=True)
     for _, row in df_sites.iterrows():
         scale = np.sqrt(row["total"] / max_n)
         px_size = int(args.min_pie_px + (args.max_pie_px - args.min_pie_px) * scale)
-        tooltip = f"{row.ID} (N={int(row['total'])}): " + ", ".join(f"{c}={int(row[c])}" for c in cats)
+        tooltip = (
+            f"{row.ID} (N={int(row['total'])}): " +
+            ", ".join(f"{c}={int(row[c])}" for c in cats)
+        )
         folium.Marker(
             [row.Latitude, row.Longitude],
             icon=folium.CustomIcon(
@@ -236,30 +267,71 @@ def main():
                 icon_size=(px_size // 2, px_size // 2),
             ),
             tooltip=tooltip,
-        ).add_to(m)
+        ).add_to(orig_layer)
+    orig_layer.add_to(m)
 
-    # legend
-    def marker_dim(n):  # visible diameter
-        return int(args.min_pie_px + (args.max_pie_px - args.min_pie_px) * np.sqrt(n / max_n)) // 2
+    # masked layer (if requested)
+    if df_sites_masked is not None:
+        mask_layer = folium.FeatureGroup(name="Masked view", show=False)
+        for _, row in df_sites_masked.iterrows():
+            scale = np.sqrt(row["total"] / max_n)
+            px_size = int(args.min_pie_px + (args.max_pie_px - args.min_pie_px) * scale)
+            tooltip = (
+                f"{row.ID} (N={int(row['total'])}): " +
+                ", ".join(f"{c}={int(row[c])}" for c in cats)
+            )
+            folium.Marker(
+                [row.Latitude, row.Longitude],
+                icon=folium.CustomIcon(
+                    pie_icon([row[c] for c in cats], colors, px_size),
+                    icon_size=(px_size // 2, px_size // 2),
+                ),
+                tooltip=tooltip,
+            ).add_to(mask_layer)
+        mask_layer.add_to(m)
 
-    size_refs = [(min_n, f"{min_n} sample" if min_n == 1 else f"{min_n} samples"),
-                 (max_n, f"{max_n} samples")]
+        # layer‐switcher for Default vs Masked
+        folium.LayerControl(collapsed=False).add_to(m)
+
+    # ---- LEGEND & WRITE OUT ---------------------------------------------
+    def marker_dim(n):
+        return int(args.min_pie_px +
+                   (args.max_pie_px - args.min_pie_px) * np.sqrt(n / max_n)) // 2
+
+    size_refs = [
+        (min_n, f"{min_n} sample" if min_n == 1 else f"{min_n} samples"),
+        (max_n, f"{max_n} samples")
+    ]
     size_items = ""
     for n, lbl in size_refs:
         d = marker_dim(n); svg = d + 6
-        size_items += (f'<div style="display:flex;align-items:center;margin-bottom:2px;">'
-                       f'<svg width="{svg}" height="{svg}" style="margin-right:6px;">'
-                       f'<circle cx="{svg//2}" cy="{svg//2}" r="{d//2}" fill="#999"/></svg>{lbl}</div>')
-    class_items = "".join(f'<div style="margin-bottom:2px;">'
-                          f'<i style="background:{col};display:inline-block;width:12px;height:12px;margin-right:6px;"></i>{cat}</div>'
-                          for cat, col in zip(cats, colors))
-    legend_html = (f'<div style="border:1px solid #ccc;padding:10px;background:#f8f8f8;font-size:0.9em;">'
-                   f'<b>Class</b>{class_items}<hr style="margin:6px 0;"><b>Pie size</b>{size_items}</div>')
+        size_items += (
+            f'<div style="display:flex;align-items:center;margin-bottom:2px;">'
+            f'<svg width="{svg}" height="{svg}" style="margin-right:6px;">'
+            f'<circle cx="{svg//2}" cy="{svg//2}" r="{d//2}" fill="#999"/>'
+            f'</svg>{lbl}</div>'
+        )
+    class_items = "".join(
+        f'<div style="margin-bottom:2px;">'
+        f'<i style="background:{col};display:inline-block;width:12px;'
+        f'height:12px;margin-right:6px;"></i>{cat}</div>'
+        for cat, col in zip(cats, colors)
+    )
+    legend_html = (
+        '<div style="border:1px solid #ccc;padding:10px;background:#f8f8f8;'
+        'font-size:0.9em;">'
+        '<b>Class</b>' + class_items +
+        '<hr style="margin:6px 0;"><b>Pie size</b>' + size_items +
+        '</div>'
+    )
 
-    wrapped = (f'<div style="border:1px solid #ddd;border-radius:4px;padding:10px;margin-bottom:1em;'
-               f'display:flex;flex-wrap:wrap;">'
-               f'<div style="flex:1 1 500px;min-width:400px;">{m._repr_html_()}</div>'
-               f'<div style="flex:0 0 250px;margin-left:20px;">{legend_html}</div></div>')
+    wrapped = (
+        '<div style="border:1px solid #ddd;border-radius:4px;padding:10px;'
+        'margin-bottom:1em;display:flex;flex-wrap:wrap;">'
+        f'<div style="flex:1 1 500px;min-width:400px;">{m._repr_html_()}</div>'
+        f'<div style="flex:0 0 250px;margin-left:20px;">{legend_html}</div>'
+        '</div>'
+    )
 
     header = Path(args.template).read_text() if args.template else ""
     Path(args.out).write_text(header + wrapped)

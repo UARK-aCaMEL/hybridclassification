@@ -12,6 +12,7 @@ include { SIMULATE_HYBRIDS } from '../../modules/local/hybrid_simulator.nf'
 include { RUN_NEWHYBRIDS as POWER_ANALYSIS } from '../../modules/local/newhybrids.nf'
 include { RUN_NEWHYBRIDS } from '../../modules/local/newhybrids.nf'
 include { TRIANGLE_METRICS } from '../../modules/local/triangle_metrics.nf'
+include { MASK_SAMPLES } from '../../modules/local/mask_samples.nf'
 
 workflow NEWHYBRIDS {
     take:
@@ -104,6 +105,19 @@ workflow NEWHYBRIDS {
     )
     ch_versions = ch_versions.mix( RUN_NEWHYBRIDS.out.versions )
 
+    //
+    // Mask samples falling outside of the simulated distribution of h.index and int.het
+    //
+    mask_in = TRIANGLE_METRICS.out.hindex
+                .join(TRIANGLE_METRICS.out.popmap)
+                .join(RUN_NEWHYBRIDS.out.pofz)
+                .join(PREPARE_NEWHYBRIDS.out.index_map)
+    MASK_SAMPLES(
+        mask_in.map{ m, h, p, z, i -> tuple(m, h) },
+        mask_in.map{ m, h, p, z, i -> tuple(m, p) },
+        mask_in.map{ m, h, p, z, i -> tuple(m, z) },
+        mask_in.map{ m, h, p, z, i -> tuple(m, i) }
+    )
 
     emit:
     versions     = ch_versions
@@ -116,4 +130,5 @@ workflow NEWHYBRIDS {
     triangle_popmap = TRIANGLE_METRICS.out.popmap
     triangle_hindex = TRIANGLE_METRICS.out.hindex
     triangle_hindex_fixed = TRIANGLE_METRICS.out.hindex_fixed
+    masked_samples  = MASK_SAMPLES.out.mask
 }

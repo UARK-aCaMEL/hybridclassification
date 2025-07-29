@@ -10,6 +10,7 @@ include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
 include { NH_SUMMARY_TABLE } from '../../modules/local/report/newhybrids_summary.nf'
 include { NH_PLOT_SIMULATION } from '../../modules/local/report/newhybrids_simulation.nf'
 include { NH_PLOT_SPATIAL } from '../../modules/local/report/plot_newhybrids_spatial.nf'
+include { NH_PLOT_OUTLIERS } from '../../modules/local/report/plot_newhybrids_outliers.nf'
 include { PLOT_TRIANGLE } from '../../modules/local/report/plot_triangle.nf'
 include { CUSTOMIZE_REPORT } from '../../modules/local/report/customize_report.nf'
 include { STAGE_GEODATA_LAYERS } from '../../modules/local/report/stage_geodata.nf'
@@ -29,6 +30,7 @@ workflow GENERATE_REPORT {
     triangle_popmap
     triangle_hindex
     triangle_hindex_fixed
+    masked_samples
     candidate_map
     popmap
     speciesmap
@@ -42,6 +44,19 @@ workflow GENERATE_REPORT {
     ch_multiqc_files = Channel.empty()
 
 
+    //Plot NH outliers based on Triangle test
+    plot_mask_in = triangle_hindex
+                    .join(triangle_popmap)
+                    .join(nh_results)
+                    .join(nh_map)
+    NH_PLOT_OUTLIERS(
+        plot_mask_in.map{ m, h, p, z, i -> tuple(m, h) },
+        plot_mask_in.map{ m, h, p, z, i -> tuple(m, p) },
+        plot_mask_in.map{ m, h, p, z, i -> tuple(m, z) },
+        plot_mask_in.map{ m, h, p, z, i -> tuple(m, i) }
+    )
+    ch_multiqc_files = NH_PLOT_OUTLIERS.out.plot_html
+
     //Admixture barplots
     admix_inputs = k2_clumpp
                     .join(inds)
@@ -53,7 +68,7 @@ workflow GENERATE_REPORT {
         admix_inputs.map { m, k, i, p, c -> tuple(m, p) },
         admix_inputs.map { m, k, i, p, c -> tuple(m, c) }
     )
-    ch_multiqc_files = PLOT_ADMIXTURE.out.admixture_html
+    ch_multiqc_files = ch_multiqc_files.join( PLOT_ADMIXTURE.out.admixture_html )
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
 
     //Triangle plot
@@ -90,23 +105,25 @@ workflow GENERATE_REPORT {
     //NewHybrids classifications
     nh_inputs = nh_results
                 .join(nh_map)
+                .join(masked_samples)
                 .combine(popmap)
                 .combine(speciesmap)
-                .map{ m, nr, nm, pm, p, sm, s -> tuple(m, nr, nm, p, s) }
+                .map{ m, nr, nm, ms, pm, p, sm, s -> tuple(m, nr, nm, ms, p, s) }
     NH_PLOT_CLASSIFICATIONS(
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nr) },
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nm) },
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, p) },
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, s) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, nr) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, nm) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, p) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, s) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, ms) },
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_CLASSIFICATIONS.out.plot_html)
     ch_versions = ch_versions.mix( NH_PLOT_CLASSIFICATIONS.out.versions )
 
     NH_SUMMARY_TABLE(
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nr) },
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, nm) },
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, p) },
-        nh_inputs.map{m, nr, nm, p, s -> tuple(m, s) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, nr) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, nm) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, p) },
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, s) },
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json)
     ch_versions = ch_versions.mix( NH_SUMMARY_TABLE.out.versions )
@@ -121,33 +138,37 @@ workflow GENERATE_REPORT {
 
             ch_spatial_inputs = nh_results
                                 .join( nh_map )
+                                .join( masked_samples )
                                 .combine( popmap )
                                 .combine( site_coords )
                                 .combine( STAGE_GEODATA_LAYERS.out.geo_data_dir )
                                 .map{
-                                    m, nr, nm, mp, p, ms, s, mg, g -> tuple( m, nr, nm, p, s, g )
+                                    m, nr, nm, mask, mp, p, ms, s, mg, g -> tuple( m, nr, nm, mask, p, s, g )
                                 }
             NH_PLOT_SPATIAL(
-                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, nr) },
-                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, nm) },
-                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, p) },
-                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, s) },
-                ch_spatial_inputs.map{m, nr, nm, p, s, g -> tuple(m, g) }
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, nr) },
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, nm) },
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, p) },
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, s) },
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, g) },
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, mask) }
             )
             ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SPATIAL.out.plot_html)
             ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )
         } else {
             ch_spatial_inputs = nh_results
                 .join( nh_map )
+                .join( masked_samples )
                 .combine( popmap )
                 .combine( site_coords )
-                .map { m, nr, nm, mp, p, ms, s -> tuple( m, nr, nm, p, s) }
+                .map { m, nr, nm, mask, mp, p, ms, s -> tuple( m, nr, nm, mask, p, s) }
             NH_PLOT_SPATIAL(
-                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, nr) },
-                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, nm) },
-                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, p) },
-                ch_spatial_inputs.map { m, nr, nm, p, s -> tuple(m, s) },
-                tuple( [], [] )
+                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, nr) },
+                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, nm) },
+                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, p) },
+                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, s) },
+                tuple( [], [] ),
+                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, mask) }
             )
             ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SPATIAL.out.plot_html)
             ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )

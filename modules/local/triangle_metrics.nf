@@ -17,7 +17,7 @@ process TRIANGLE_METRICS {
     script:
     def args = task.ext.args ?: ''
     """
-    # build --simulation flag only if we got a sim_vcf input
+    # build --simulation flag only if we received a sim_vcf input
     SIM_ARG=""
     if [[ -n "${sim_vcf}" ]]; then
         SIM_ARG="--simulation ${sim_vcf}"
@@ -28,6 +28,7 @@ process TRIANGLE_METRICS {
         --p0 "P0" \\
         --p1 "P1" \\
         --out_prefix ${meta.id} \\
+        --af_diff_min ${params.af_dist_min} \\
         \$SIM_ARG \\
         ${args}
     """

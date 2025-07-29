@@ -10,6 +10,7 @@ process NH_PLOT_SPATIAL {
         tuple val(meta3), path(popmap)
         tuple val(meta4), path(site_coords)
         tuple val(meta5), path(geo_data)
+        tuple val(meta6), path(mask)
     output:
         tuple val(meta), path("${meta.id}_nh_spatial_mqc.html"), emit: plot_html
         tuple val(meta), path("${meta.id}_points.tsv"), emit: table
@@ -28,6 +29,7 @@ process NH_PLOT_SPATIAL {
         --site_coords ${site_coords} \\
         --threshold ${params.prob_threshold} \\
         --table_out "${meta.id}_points.tsv" \\
+        --mask ${mask} \\
         ${geo_data_arg} \\
         ${args}
 
