@@ -5,8 +5,7 @@ process ADMIXTUREPIPELINE {
     container 'docker.io/mussmann/admixpipe:3.2'
 
     input:
-    tuple val(meta), path(vcf)
-    tuple val(meta2), path(popmap)
+    tuple val(meta), path(vcf), path(popmap)
 
     output:
     tuple val(meta), path("results.zip"),      emit: results

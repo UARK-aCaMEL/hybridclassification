@@ -5,12 +5,7 @@ process DISTRUCT {
     container 'docker.io/mussmann/admixpipe:3.2'
 
     input:
-    tuple val(meta), path(pfiles)
-    tuple val(meta2), path(qfiles)
-    tuple val(meta3), path(pops)
-    tuple val(meta4), path(inds)
-    tuple val(meta5), path(logs)
-    tuple val(meta6), path(clumpak)
+    tuple val(meta), path(pfiles), path(qfiles), path(pops), path(inds), path(logs), path(clumpak)
 
     output:
     tuple val(meta), path("MajorClusterRuns.txt"), emit: major_clusters

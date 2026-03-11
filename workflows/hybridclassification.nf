@@ -3,15 +3,10 @@
     IMPORT MODULES / SUBWORKFLOWS / FUNCTIONS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
-
-include { MULTIQC                } from '../modules/nf-core/multiqc/main'
-include { paramsSummaryMap       } from 'plugin/nf-validation'
-include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
-include { methodsDescriptionText } from '../subworkflows/local/utils_nfcore_hybridclassification_pipeline'
-
 include { ADMIXPIPE              } from '../subworkflows/local/admixpipe.nf'
 include { NEWHYBRIDS             } from '../subworkflows/local/newhybrids.nf'
+include { GENOMIC_CLINES         } from '../subworkflows/local/genomic_clines.nf'
+include { GENERATE_REPORT        } from '../subworkflows/local/generate_report.nf'
 include { SNPIO_FILTER           } from '../modules/local/snpio/pre_filter.nf'
 include { SNPIO_SELECT           } from '../modules/local/snpio/select_pops.nf'
 include { FIND_CANDIDATES        } from '../modules/local/find_candidates.nf'
@@ -29,157 +24,143 @@ workflow HYBRIDCLASSIFICATION {
     ch_tbi     // [meta, tbi]
     ch_popmap  // [meta, popmap]
     ch_speciesmap // [meta, speciesmap]
-    ch_site_coords // [meta, site_coords]
-    ch_species_meta // [meta, species_meta]
-    ch_combinations // [meta] where meta = [id: "${pop1}_${pop2}", pop1: pop1, pop2: pop2]
+    ch_site_coords
+    ch_geo_data
+    ch_geo_data_dir
+    ch_combinations
 
     main:
 
     ch_versions = Channel.empty()
-    ch_multiqc_files = Channel.empty()
 
     //
-    // Create multi-item channels with combination meta for all inputs
-    //
-    ch_combo_popmap = ch_combinations
-        .combine(ch_popmap)
-        .map { combo_meta, orig_meta, popmap ->
-            [combo_meta, popmap]
-        }
-
-    ch_combo_speciesmap = ch_combinations
-        .combine(ch_speciesmap)
-        .map { combo_meta, orig_meta, speciesmap ->
-            [combo_meta, speciesmap]
-        }
-
-    ch_combo_site_coords = ch_combinations
-        .combine(ch_site_coords)
-        .map { combo_meta, orig_meta, site_coords ->
-            [combo_meta, site_coords]
-        }
-
-    ch_combo_species_meta = ch_combinations
-        .combine(ch_species_meta)
-        .map { combo_meta, orig_meta, species_meta ->
-            [combo_meta, species_meta]
-        }
-
-    //
-    // Generate subset VCFs for each test combination (keep original working approach)
+    // Generate subset VCFs for each test combination
     //
     ch_combinations
         .combine(ch_vcf)
         .combine(ch_tbi)
         .combine(ch_speciesmap)
-        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_speciesmap, speciesmap ->
-            [pops, [meta_vcf, vcf], [meta_tbi, tbi], [meta_speciesmap, speciesmap]]
+        .map { pops, meta_vcf, vcf, meta_tbi, tbi, meta_popmap, popmap ->
+            [pops, meta_vcf, vcf, tbi, popmap]
         }
         .set { ch_snpio_input }
 
     SNPIO_SELECT(
-        ch_snpio_input.map { it[1] }, // vcf with meta
-        ch_snpio_input.map { it[2] }, // tbi with meta
-        ch_snpio_input.map { it[3] }, // speciesmap with meta
-        ch_snpio_input.map { it[0] }  // pops combination
+        ch_snpio_input.map { c, m, v, t, p -> [m, v] },
+        ch_snpio_input.map { c, m, v, t, p -> [m, t] },
+        ch_snpio_input.map { c, m, v, t, p -> [m, p] },
+        ch_snpio_input.map { c, m, v, t, p -> c },
     )
-    ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
 
     //
-    // VCF pre-processing (use combo channels for natural matching)
+    //VCF pre-processing
     //
+    SNPIO_SELECT.out.filtered_vcf
+        .combine(ch_speciesmap)
+        .map { pops, vcf, meta_popmap, popmap ->
+            [pops, vcf, popmap]
+        }
+        .set { ch_filter_input }
+
     SNPIO_FILTER(
-        SNPIO_SELECT.out.filtered_vcf
-            .join(ch_combo_popmap, by: 0)
-            .map { meta, vcf, popmap ->
-                [meta, vcf, popmap]
-            }
+        ch_filter_input
     )
     ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
+
     //
-    // Run admixture pipeline - natural meta matching
+    // Run admixture pipeline on each filtered dataset
     //
+    SNPIO_FILTER.out.filtered_vcf
+        .combine( ch_speciesmap )
+        .map { meta, vcf, popmap_meta, popmap -> tuple(meta, vcf, popmap) }
+        .set { ch_admixpipe_input }
+
     ADMIXPIPE(
-        SNPIO_FILTER.out.filtered_vcf,
-        ch_combo_popmap
+        ch_admixpipe_input
     )
     ch_versions = ch_versions.mix(ADMIXPIPE.out.versions)
 
+
     //
-    // Generate inputs for newhybrids - natural meta matching
+    // Generate inputs for newhybrids subworkflow
     //
+    ch_joined  = ADMIXPIPE.out.k2_clumpp.join(ADMIXPIPE.out.inds)
+    ch_find_in = ch_joined
+        .combine(ch_popmap.map{meta, popmap -> popmap})
+        .combine(ch_speciesmap.map{meta, popmap -> popmap})
     FIND_CANDIDATES(
-        ADMIXPIPE.out.k2_clumpp,
-        ADMIXPIPE.out.inds,
-        ch_combo_popmap,
-        ch_combo_speciesmap
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, k2) },
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, i) },
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, p) },
+        ch_find_in.map { m, k2, i, p, s -> tuple(m, s) }
     )
     ch_versions = ch_versions.mix( FIND_CANDIDATES.out.versions )
 
     //
-    // NewHybrids subworkflow - natural meta matching
+    // NewHybrids subworkflow
     //
+    ch_joined_nh = SNPIO_FILTER.out.filtered_vcf
+                        .join(SNPIO_FILTER.out.filtered_tbi)
+                        .join(FIND_CANDIDATES.out.popmap)
     NEWHYBRIDS(
-        SNPIO_FILTER.out.filtered_vcf,
-        SNPIO_FILTER.out.filtered_tbi,
-        FIND_CANDIDATES.out.popmap
+        ch_joined_nh.map { m, v, t, p -> tuple(m, v) },
+        ch_joined_nh.map { m, v, t, p -> tuple(m, t) },
+        ch_joined_nh.map { m, v, t, p -> tuple(m, p) }
     )
     ch_versions = ch_versions.mix( NEWHYBRIDS.out.versions )
 
-    //
-    // Collate and save software versions
-    //
-    softwareVersionsToYAML(ch_versions)
-        .collectFile(
-            storeDir: "${params.outdir}/pipeline_info",
-            name: 'nf_core_pipeline_software_mqc_versions.yml',
-            sort: true,
-            newLine: true
-        ).set { ch_collated_versions }
 
     //
-    // MODULE: MultiQC
+    // Optional: Genomic clines subworkflow
     //
-    ch_multiqc_config        = Channel.fromPath(
-        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = params.multiqc_config ?
-        Channel.fromPath(params.multiqc_config, checkIfExists: true) :
-        Channel.empty()
-    ch_multiqc_logo          = params.multiqc_logo ?
-        Channel.fromPath(params.multiqc_logo, checkIfExists: true) :
-        Channel.empty()
-
-    summary_params      = paramsSummaryMap(
-        workflow, parameters_schema: "nextflow_schema.json")
-    ch_workflow_summary = Channel.value(paramsSummaryMultiqc(summary_params))
-
-    ch_multiqc_custom_methods_description = params.multiqc_methods_description ?
-        file(params.multiqc_methods_description, checkIfExists: true) :
-        file("$projectDir/assets/methods_description_template.yml", checkIfExists: true)
-    ch_methods_description                = Channel.value(
-        methodsDescriptionText(ch_multiqc_custom_methods_description))
-
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
-    ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
-    ch_multiqc_files = ch_multiqc_files.mix(
-        ch_methods_description.collectFile(
-            name: 'methods_description_mqc.yaml',
-            sort: true
+    ch_bgc_text  = Channel.empty()
+    if (params.run_bgc){
+        ch_joined_bgc = SNPIO_FILTER.out.filtered_vcf
+                        .join(SNPIO_FILTER.out.filtered_tbi)
+                        .join(FIND_CANDIDATES.out.popmap)
+        GENOMIC_CLINES(
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, v) },
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, t) },
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, p) }
         )
+        ch_versions = ch_versions.mix( GENOMIC_CLINES.out.versions )
+        ch_bgc_text  = GENOMIC_CLINES.out.bgc_text
+    }
+
+    //
+    // Generate reports
+    //
+
+    GENERATE_REPORT(
+        ADMIXPIPE.out.inds,
+        ADMIXPIPE.out.pops,
+        ADMIXPIPE.out.k2_clumpp,
+        ADMIXPIPE.out.bestK_clumpp,
+        NEWHYBRIDS.out.nh_result,
+        NEWHYBRIDS.out.nh_trace,
+        NEWHYBRIDS.out.nh_map,
+        NEWHYBRIDS.out.sim_result,
+        NEWHYBRIDS.out.sim_trace,
+        NEWHYBRIDS.out.sim_map,
+        NEWHYBRIDS.out.triangle_popmap,
+        NEWHYBRIDS.out.triangle_hindex,
+        NEWHYBRIDS.out.triangle_hindex_fixed,
+        NEWHYBRIDS.out.masked_samples,
+        FIND_CANDIDATES.out.popmap,
+        ch_popmap,
+        ch_speciesmap,
+        ch_site_coords,
+        ch_geo_data,
+        ch_geo_data_dir,
+        ch_bgc_text,
+        ch_versions
     )
 
-    MULTIQC (
-        ch_multiqc_files.collect(),
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList()
-    )
 
     emit:
-    multiqc_report = MULTIQC.out.report.toList() // channel: /path/to/multiqc_report.html
-    versions       = ch_versions                 // channel: [ path(versions.yml) ]
+    multiqc_report = GENERATE_REPORT.out.multiqc_report
+    versions       = GENERATE_REPORT.out.versions
 }
 
 /*

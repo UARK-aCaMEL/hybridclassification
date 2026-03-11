@@ -36,7 +36,8 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
     popmap
     speciesmap
     site_coords
-    species_meta
+    geo_data
+    geo_data_dir
     combinations
 
     main:
@@ -50,7 +51,8 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
         popmap,
         speciesmap,
         site_coords,
-        species_meta,
+        geo_data,
+        geo_data_dir,
         combinations
     )
 
@@ -82,7 +84,8 @@ workflow {
         params.popmap,
         params.speciesmap,
         params.site_coords,
-        params.species_meta,
+        params.geo_data_config,
+        params.geo_data_dir,
         params.combinations
     )
 
@@ -95,7 +98,8 @@ workflow {
         PIPELINE_INITIALISATION.out.popmap,
         PIPELINE_INITIALISATION.out.speciesmap,
         PIPELINE_INITIALISATION.out.site_coords,
-        PIPELINE_INITIALISATION.out.species_meta,
+        PIPELINE_INITIALISATION.out.geo_data,
+        PIPELINE_INITIALISATION.out.geo_data_dir,
         PIPELINE_INITIALISATION.out.combinations
     )
 

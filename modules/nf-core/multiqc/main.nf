@@ -1,5 +1,6 @@
 process MULTIQC {
     label 'process_single'
+    tag "$meta.id"
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine == 'singularity' && !task.ext.singularity_pull_docker_container ?
@@ -7,13 +8,30 @@ process MULTIQC {
         'biocontainers/multiqc:1.21--pyhdfd78af_0' }"
 
     input:
-    path  multiqc_files, stageAs: "?/*"
-    path(multiqc_config)
-    path(extra_multiqc_config)
-    path(multiqc_logo)
+    tuple val(meta), 
+        path(plot1), 
+        path(plot2),
+        path(plot3),
+        path(plot4),
+        path(plot5),
+        path(plot6),
+        path(plot7),
+        path(plot8),
+        path(plot9), 
+        path(plot10),
+        path(plot11),
+        path(plot12), 
+        path(plot13),
+        path(plot14),
+        path(workflow_summary),
+        path(versions),
+        path(methods_description)
+        path(multiqc_config)
+        path(extra_multiqc_config)
+        path(multiqc_logo)
 
     output:
-    path "*multiqc_report.html", emit: report
+    tuple val(meta), path("*multiqc_report.html"), emit: report
     path "*_data"              , emit: data
     path "*_plots"             , optional:true, emit: plots
     path "versions.yml"        , emit: versions

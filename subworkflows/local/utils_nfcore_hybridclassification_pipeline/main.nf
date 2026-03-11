@@ -41,7 +41,8 @@ workflow PIPELINE_INITIALISATION {
     popmap            // string: path to popmap file
     speciesmap
     site_coords
-    species_meta
+    geo_data_config
+    geo_data_dir
     combinations
 
     main:
@@ -129,26 +130,57 @@ workflow PIPELINE_INITIALISATION {
         .set{ ch_speciesmap }
 
     //
-    // Channel for site_coords
+    // Channel for geo_data_config (optional)
     //
-    Channel
-        .fromPath(site_coords)
-        .map { file ->
-            def meta = [id: file.simpleName]
-            return [meta, file]
-        }
-        .set{ ch_site_coords }
+    if ( params.geo_data_config ) {
+        Channel
+            .fromPath( params.geo_data_config )
+            .map { file ->
+                def meta = [ id: file.simpleName ]
+                return [ meta, file ]
+            }
+            .set { ch_geo_data_config }
+    }
+    else {
+        Channel
+            .empty()
+            .set { ch_geo_data_config }
+    }
+
 
     //
-    // Channel for species_meta
+    // Channel for a *pre‑staged* geodata directory (optional)
     //
-    Channel
-        .fromPath(species_meta)
-        .map { file ->
-            def meta = [id: file.simpleName]
-            return [meta, file]
-        }
-        .set{ ch_species_meta }
+    if ( params.geo_data_dir ) {
+        Channel
+            .fromPath( params.geo_data_dir )      // accepts dir or wildcard
+            .map { dir ->
+                def meta = [ id: file(dir).getBaseName() ]
+                return [ meta, dir ]
+            }
+            .set { ch_geo_data_dir }
+    }
+    else {
+        Channel.empty().set { ch_geo_data_dir }
+    }
+
+    //
+    // Channel for site_coords (optional)
+    //
+    if ( params.site_coords ) {
+        Channel
+            .fromPath( params.site_coords )
+            .map { file ->
+                def meta = [ id: file.simpleName ]
+                return [ meta, file ]
+            }
+            .set { ch_site_coords }
+    }
+    else {
+        Channel
+            .empty()
+            .set { ch_site_coords }
+    }
 
     //
     // Channel for combinations to test
@@ -177,7 +209,8 @@ workflow PIPELINE_INITIALISATION {
     popmap    = ch_popmap
     speciesmap = ch_speciesmap
     site_coords = ch_site_coords
-    species_meta = ch_species_meta
+    geo_data    = ch_geo_data_config
+    geo_data_dir = ch_geo_data_dir
     combinations = ch_combinations
     versions  = ch_versions
 }
@@ -233,11 +266,120 @@ workflow PIPELINE_COMPLETION {
 // Validate input params
 //
 def validateInputParameters() {
-    // // Validate maxk is an integer
-    // if (!(params.maxk instanceof Integer)) {
-    //     log.error "Invalid value for --maxk: '${params.maxk}'. It must be an integer."
-    // }
+    def errors = []
+
+    def isIntegerLike = { v ->
+        (v instanceof Integer) ||
+        (v instanceof Long) ||
+        (v instanceof Short) ||
+        (v instanceof Byte)
+    }
+
+    def isNumericLike = { v ->
+        (v instanceof Integer) ||
+        (v instanceof Long) ||
+        (v instanceof Short) ||
+        (v instanceof Byte) ||
+        (v instanceof Float) ||
+        (v instanceof Double) ||
+        (v instanceof BigDecimal)
+    }
+
+    def checkInteger = { name, value, min = null, max = null ->
+        if (!isIntegerLike(value)) {
+            errors << "Invalid value for --${name}: '${value}'. It must be an integer."
+            return
+        }
+        if (min != null && value < min) {
+            errors << "Invalid value for --${name}: '${value}'. It must be >= ${min}."
+        }
+        if (max != null && value > max) {
+            errors << "Invalid value for --${name}: '${value}'. It must be <= ${max}."
+        }
+    }
+
+    def checkNumeric = { name, value, min = null, max = null, minInclusive = true, maxInclusive = true ->
+        if (!isNumericLike(value)) {
+            errors << "Invalid value for --${name}: '${value}'. It must be numeric."
+            return
+        }
+
+        if (min != null) {
+            boolean badMin = minInclusive ? (value < min) : (value <= min)
+            if (badMin) {
+                String op = minInclusive ? ">=" : ">"
+                errors << "Invalid value for --${name}: '${value}'. It must be ${op} ${min}."
+            }
+        }
+
+        if (max != null) {
+            boolean badMax = maxInclusive ? (value > max) : (value >= max)
+            if (badMax) {
+                String op = maxInclusive ? "<=" : "<"
+                errors << "Invalid value for --${name}: '${value}'. It must be ${op} ${max}."
+            }
+        }
+    }
+
+    def checkBoolean = { name, value ->
+        if (!(value instanceof Boolean)) {
+            errors << "Invalid value for --${name}: '${value}'. It must be true or false."
+        }
+    }
+
+    // Integer parameters
+    checkInteger('maxk', params.maxk, 1)
+    checkInteger('thin_dist', params.thin_dist, 0)
+    checkInteger('sample_size', params.sample_size, 1)
+    checkInteger('n_reps', params.n_reps, 1)
+    checkInteger('panel_size', params.panel_size, 1)
+    checkInteger('nh_burnin', params.nh_burnin, 0)
+    checkInteger('nh_sweeps', params.nh_sweeps, 1)
+    checkInteger('bgc_iters', params.bgc_iters, 1)
+    checkInteger('bgc_thin', params.bgc_thin, 1)
+
+    // Proportions / probabilities / bounded numeric parameters
+    checkNumeric('ind_cov', params.ind_cov, 0, 1, true, true)
+    checkNumeric('snp_cov', params.snp_cov, 0, 1, true, true)
+    checkNumeric('pop_cov', params.pop_cov, 0, 1, true, true)
+    checkNumeric('min_maf', params.min_maf, 0, 0.5, true, true)
+    checkNumeric('ancestry_threshold', params.ancestry_threshold, 0, 1, true, true)
+    checkNumeric('prob_threshold', params.prob_threshold, 0, 1, true, true)
+    checkNumeric('af_dist_min', params.af_dist_min, 0, 1, true, true)
+    checkNumeric('outlier_alpha', params.outlier_alpha, 0, 1, false, false)
+    checkNumeric('bgc_burnin', params.bgc_burnin, 0, 1, false, true)
+
+    // Boolean parameters
+    checkBoolean('run_bgc', params.run_bgc)
+
+    // Cross-parameter logic checks
+    if (isIntegerLike(params.panel_size) && isIntegerLike(params.thin_dist)) {
+        if (params.panel_size < 1) {
+            errors << "Invalid value for --panel_size: '${params.panel_size}'. It must be >= 1."
+        }
+        if (params.thin_dist < 0) {
+            errors << "Invalid value for --thin_dist: '${params.thin_dist}'. It must be >= 0."
+        }
+    }
+
+    if (isIntegerLike(params.maxk) && params.maxk < 2) {
+        log.warn "Parameter --maxk is '${params.maxk}'. Structure-like clustering usually expects K >= 2."
+    }
+
+    if (params.run_bgc instanceof Boolean && params.run_bgc) {
+        if (isIntegerLike(params.bgc_iters) && isIntegerLike(params.bgc_thin)) {
+            if (params.bgc_thin > params.bgc_iters) {
+                errors << "Invalid combination: --bgc_thin (${params.bgc_thin}) cannot be greater than --bgc_iters (${params.bgc_iters})."
+            }
+        }
+    }
+
+    if (errors) {
+        errors.each { log.error it }
+        throw new IllegalArgumentException("Invalid input parameter(s). See error messages above.")
+    }
 }
+
 //
 // Generate methods description for MultiQC
 //
