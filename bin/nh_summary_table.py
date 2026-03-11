@@ -19,7 +19,7 @@ Usage:
       [--list       hybrid_list.txt] \
       [--mask       masked_ids.txt] \
       [--masked_template nh_masked_header.html] \
-      [--out_mask   nh_summary_masked.json] \
+      [--out_mask   nh_summary_mask_mqc.json] \
       [--list_masked masked_hybrid_list.txt]
 """
 import pandas as pd
@@ -75,10 +75,9 @@ def write_mqc_json(df, metadata, output):
 
 
 def compute_summary(df, cats, hybrids):
-    # species-level
     all_cats = cats + ['Unassigned']
-    sp_counts = df.groupby('Species')['AssignedCategory'] \
-                   .value_counts().unstack(fill_value=0)
+
+    sp_counts = df.groupby('Species')['AssignedCategory'].value_counts().unstack(fill_value=0)
     sp_n      = sp_counts.sum(axis=1)
     sp_prop   = sp_counts.div(sp_n, axis=0)
     for c in all_cats:
@@ -89,9 +88,7 @@ def compute_summary(df, cats, hybrids):
     sp_prop['N'] = sp_n.values.astype(int)
     sp_prop = sp_prop[['Group','N'] + cats + ['Unassigned','Total_Hybrids']]
 
-    # population-level
-    pop_counts = df.groupby(['Species','Population'])['AssignedCategory'] \
-                    .value_counts().unstack(fill_value=0)
+    pop_counts = df.groupby(['Species','Population'])['AssignedCategory'].value_counts().unstack(fill_value=0)
     pop_n      = pop_counts.sum(axis=1)
     pop_prop   = pop_counts.div(pop_n, axis=0)
     for c in all_cats:
@@ -106,8 +103,7 @@ def compute_summary(df, cats, hybrids):
     pop_prop = pop_prop[['Group','N'] + cats + ['Unassigned','Total_Hybrids']]
 
     summary = pd.concat([sp_prop, pop_prop], ignore_index=True)
-    summary[cats + ['Unassigned','Total_Hybrids']] = \
-        summary[cats + ['Unassigned','Total_Hybrids']].round(2)
+    summary[cats + ['Unassigned','Total_Hybrids']] = summary[cats + ['Unassigned','Total_Hybrids']].round(2)
     return summary
 
 
@@ -128,41 +124,36 @@ def main():
     p.add_argument('--list_masked',      help='Optional output path for list of hybrids after masking')
     args = p.parse_args()
 
-    # read and merge inputs
-    df_nh      = read_nh_results(args.result)
-    df_map, df_pop, df_spc = load_maps(
-        args.result_map, args.popmap, args.speciesmap
-    )
+    df_nh = read_nh_results(args.result)
+    df_map, df_pop, df_spc = load_maps(args.result_map, args.popmap, args.speciesmap)
+
     df = (
         df_nh.drop(columns='Individual')
              .merge(df_map, on='Index')
              .merge(df_pop, on='Individual', how='left')
              .merge(df_spc, on='Individual', how='left')
     )
+    df = df.loc[:, ~df.columns.duplicated()]
 
-    # categories
     cats    = ['P0','P1','F1','F2','Bx0','Bx1']
     hybrids = ['F1','F2','Bx0','Bx1']
+    cat2idx = {c: i for i, c in enumerate(cats)}
 
-    # assign categories
     df['MaxProb'] = df[cats].max(axis=1)
     df['AssignedCategory'] = df[cats].idxmax(axis=1)
     df.loc[df['MaxProb'] <= args.threshold, 'AssignedCategory'] = 'Unassigned'
 
-    # write default hybrid list
     if args.list:
         is_hybrid = df['AssignedCategory'].isin(hybrids)
-        hybrid_df = df[is_hybrid].copy()
-        hybrid_df['Prob'] = hybrid_df.apply(
-            lambda r: r[r['AssignedCategory']], axis=1
-        )
+        hybrid_df = df.loc[is_hybrid].copy()
+        idx = hybrid_df['AssignedCategory'].map(cat2idx).to_numpy()
+        vals = hybrid_df[cats].to_numpy()
+        hybrid_df['Prob'] = vals[np.arange(len(hybrid_df)), idx]
         hybrid_df['Individual'].to_csv(args.list, index=False, header=False)
         print(f"✅ Hybrid list → {args.list}")
 
-    # default summary
     summary = compute_summary(df, cats, hybrids)
 
-    # write default table
     if args.template:
         meta = parse_html_header(args.template)
         write_mqc_json(summary, meta, args.out)
@@ -170,22 +161,17 @@ def main():
         summary.to_csv(args.out, sep='\t', index=False, float_format='%.2f')
     print(f"✅ Default summary table → {args.out}")
 
-    # masked summary (optional)
     if args.mask:
         mask_ids = set(Path(args.mask).read_text().split())
         if mask_ids & set(df['Individual']):
             df_masked = df.copy()
-            df_masked.loc[
-                df_masked['Individual'].isin(mask_ids),
-                'AssignedCategory'
-            ] = 'Unassigned'
+            df_masked.loc[df_masked['Individual'].isin(mask_ids), 'AssignedCategory'] = 'Unassigned'
+
             summary_m = compute_summary(df_masked, cats, hybrids)
 
-            # determine masked summary output path
-            out_m = args.out_mask or \
-                str(Path(args.out).with_name(
-                    Path(args.out).stem + '.masked' + Path(args.out).suffix
-                ))
+            out_m = args.out_mask or str(
+                Path(args.out).with_name(Path(args.out).stem + '.masked' + Path(args.out).suffix)
+            )
 
             if args.masked_template:
                 meta_m = parse_html_header(args.masked_template)
@@ -194,16 +180,13 @@ def main():
                 summary_m.to_csv(out_m, sep='\t', index=False, float_format='%.2f')
             print(f"✅ Masked summary table → {out_m}")
 
-            # write masked hybrid list
             if args.list_masked:
                 is_hybrid_m = df_masked['AssignedCategory'].isin(hybrids)
-                hybrid_m = df_masked[is_hybrid_m].copy()
-                hybrid_m['Prob'] = hybrid_m.apply(
-                    lambda r: r[r['AssignedCategory']], axis=1
-                )
-                hybrid_m['Individual'].to_csv(
-                    args.list_masked, index=False, header=False
-                )
+                hybrid_m = df_masked.loc[is_hybrid_m].copy()
+                idx_m = hybrid_m['AssignedCategory'].map(cat2idx).to_numpy()
+                vals_m = hybrid_m[cats].to_numpy()
+                hybrid_m['Prob'] = vals_m[np.arange(len(hybrid_m)), idx_m]
+                hybrid_m['Individual'].to_csv(args.list_masked, index=False, header=False)
                 print(f"✅ Masked hybrid list → {args.list_masked}")
 
 if __name__ == '__main__':

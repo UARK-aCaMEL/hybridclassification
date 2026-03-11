@@ -18,12 +18,17 @@ process MULTIQC {
         path(plot7),
         path(plot8),
         path(plot9), 
+        path(plot10),
+        path(plot11),
+        path(plot12), 
+        path(plot13),
+        path(plot14),
         path(workflow_summary),
         path(versions),
         path(methods_description)
-    path(multiqc_config)
-    path(extra_multiqc_config)
-    path(multiqc_logo)
+        path(multiqc_config)
+        path(extra_multiqc_config)
+        path(multiqc_logo)
 
     output:
     tuple val(meta), path("*multiqc_report.html"), emit: report

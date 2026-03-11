@@ -46,6 +46,11 @@ def make_plot(df, out_html, template=None, palette="Viridis", mask_file=None):
     # long form
     df_long = df.melt(id_vars=["Individual","Species","Population","AssignedCategory"],
                       value_vars=cats, var_name="Category", value_name="Probability")
+    seen = set() # in case of duplicates
+    individual_order = [
+        x for x in (str(x).strip() for x in individual_order if pd.notna(x))
+        if not (x in seen or seen.add(x))
+    ]
     df_long["Individual"] = pd.Categorical(df_long["Individual"], categories=individual_order, ordered=True)
 
     # colors

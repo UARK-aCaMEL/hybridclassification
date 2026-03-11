@@ -12,6 +12,10 @@ include { NH_PLOT_SIMULATION } from '../../modules/local/report/newhybrids_simul
 include { NH_PLOT_SPATIAL } from '../../modules/local/report/plot_newhybrids_spatial.nf'
 include { NH_PLOT_OUTLIERS } from '../../modules/local/report/plot_newhybrids_outliers.nf'
 include { PLOT_TRIANGLE } from '../../modules/local/report/plot_triangle.nf'
+include { BGC_MCMC_SUMMARY } from '../../modules/local/report/bgc_mcmc_summary.nf'
+include { BGC_PLOT_HINDEX } from '../../modules/local/report/bgc_plot_hindex.nf'
+include { BGC_PLOT_CLINES } from '../../modules/local/report/bgc_plot_clines.nf'
+
 include { CUSTOMIZE_REPORT } from '../../modules/local/report/customize_report.nf'
 include { STAGE_GEODATA_LAYERS } from '../../modules/local/report/stage_geodata.nf'
 
@@ -37,6 +41,7 @@ workflow GENERATE_REPORT {
     site_coords
     geo_data
     geo_data_dir
+    bgc_output
     ch_versions
 
     main:
@@ -176,7 +181,32 @@ workflow GENERATE_REPORT {
             ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )
         }
     }
-    ch_multiqc_files.view()
+
+    //
+    // Optional genomic clines handling
+    //
+    if (params.run_bgc){
+
+        // MCMC trace plot
+        // Not planned for now (inflates report size too much)
+
+        // MCMC summary stats
+        BGC_MCMC_SUMMARY( bgc_output )
+        ch_multiqc_files = ch_multiqc_files.join(BGC_MCMC_SUMMARY.out.table_json)
+
+        // Hybrid indices
+        BGC_PLOT_HINDEX( bgc_output )
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_HINDEX.out.plot_html)
+
+        // Genomic clines and alpha-beta plot
+        BGC_PLOT_CLINES( bgc_output )
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.cline_plot_html)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.scatter_plot_html)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.single_plot_html)
+
+
+    }
+
 
     //
     // Collate and save software versions

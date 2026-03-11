@@ -5,6 +5,7 @@
 */
 include { ADMIXPIPE              } from '../subworkflows/local/admixpipe.nf'
 include { NEWHYBRIDS             } from '../subworkflows/local/newhybrids.nf'
+include { GENOMIC_CLINES         } from '../subworkflows/local/genomic_clines.nf'
 include { GENERATE_REPORT        } from '../subworkflows/local/generate_report.nf'
 include { SNPIO_FILTER           } from '../modules/local/snpio/pre_filter.nf'
 include { SNPIO_SELECT           } from '../modules/local/snpio/select_pops.nf'
@@ -109,6 +110,24 @@ workflow HYBRIDCLASSIFICATION {
     )
     ch_versions = ch_versions.mix( NEWHYBRIDS.out.versions )
 
+
+    //
+    // Optional: Genomic clines subworkflow
+    //
+    ch_bgc_text  = Channel.empty()
+    if (params.run_bgc){
+        ch_joined_bgc = SNPIO_FILTER.out.filtered_vcf
+                        .join(SNPIO_FILTER.out.filtered_tbi)
+                        .join(FIND_CANDIDATES.out.popmap)
+        GENOMIC_CLINES(
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, v) },
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, t) },
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, p) }
+        )
+        ch_versions = ch_versions.mix( GENOMIC_CLINES.out.versions )
+        ch_bgc_text  = GENOMIC_CLINES.out.bgc_text
+    }
+
     //
     // Generate reports
     //
@@ -134,6 +153,7 @@ workflow HYBRIDCLASSIFICATION {
         ch_site_coords,
         ch_geo_data,
         ch_geo_data_dir,
+        ch_bgc_text,
         ch_versions
     )
 
