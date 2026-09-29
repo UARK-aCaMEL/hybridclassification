@@ -6,6 +6,9 @@ process BGC_PLOT_CLINES {
 
     input:
         tuple val(meta), path(bgc_results)
+        path(template_overlay)
+        path(template_scatter)
+        path(template_single)
 
     output:
         tuple val(meta), path("${meta.id}_gencline_plot_mqc.html"),         emit: cline_plot_html
@@ -56,9 +59,9 @@ process BGC_PLOT_CLINES {
         --center            "\${CENTER_FILE}" \\
         --gradient          "\${GRADIENT_FILE}" \\
         --loci              "\${LOCUS_FILE}" \\
-        --template-overlay  ${baseDir}/assets/multiqc_bgc_gencline_plot.html \\
-        --template-scatter  ${baseDir}/assets/multiqc_bgc_gencline_scatter.html \\
-        --template-single   ${baseDir}/assets/multiqc_bgc_gencline_single.html \\
+        --template-overlay  ${template_overlay} \\
+        --template-scatter  ${template_scatter} \\
+        --template-single   ${template_single} \\
         --out-overlay       "${meta.id}_gencline_plot_mqc.html" \\
         --out-scatter       "${meta.id}_gencline_param_scatter_mqc.html" \\
         --out-single        "${meta.id}_gencline_single_locus_mqc.html" \\

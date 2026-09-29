@@ -63,7 +63,8 @@ workflow GENERATE_REPORT {
         plot_mask_in.map{ m, h, p, z, i -> tuple(m, h) },
         plot_mask_in.map{ m, h, p, z, i -> tuple(m, p) },
         plot_mask_in.map{ m, h, p, z, i -> tuple(m, z) },
-        plot_mask_in.map{ m, h, p, z, i -> tuple(m, i) }
+        plot_mask_in.map{ m, h, p, z, i -> tuple(m, i) },
+        file("${projectDir}/assets/multiqc_nh_outliers.html", checkIfExists: true)
     )
     ch_multiqc_files = NH_PLOT_OUTLIERS.out.plot_html
 
@@ -76,7 +77,8 @@ workflow GENERATE_REPORT {
         admix_inputs.map { m, k, i, p, c -> tuple(m, k) },
         admix_inputs.map { m, k, i, p, c -> tuple(m, i) },
         admix_inputs.map { m, k, i, p, c -> tuple(m, p) },
-        admix_inputs.map { m, k, i, p, c -> tuple(m, c) }
+        admix_inputs.map { m, k, i, p, c -> tuple(m, c) },
+        file("${projectDir}/assets/multiqc_admixture_bestk.html", checkIfExists: true)
     )
     ch_multiqc_files = ch_multiqc_files.join( PLOT_ADMIXTURE.out.admixture_html )
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
@@ -99,7 +101,8 @@ workflow GENERATE_REPORT {
         tri_input.map{ m, th, thf, tp, p -> tuple(m, th) },
         tri_input.map{ m, th, thf, tp, p -> tuple(m, thf) },
         tri_input.map{ m, th, thf, tp, p -> tuple(m, tp) },
-        tri_input.map{ m, th, thf, tp, p -> tuple(m, p) }
+        tri_input.map{ m, th, thf, tp, p -> tuple(m, p) },
+        file("${projectDir}/assets/multiqc_triangle.html", checkIfExists: true)
     )
     ch_multiqc_files = ch_multiqc_files.join(PLOT_TRIANGLE.out.plot_html)
 
@@ -108,14 +111,16 @@ workflow GENERATE_REPORT {
                 .join(sim_map)
     NH_PLOT_SIMULATION(
         sim_input.map{ m, si, sm -> tuple(m, si) },
-        sim_input.map{ m, si, sm -> tuple(m, sm) }
+        sim_input.map{ m, si, sm -> tuple(m, sm) },
+        file("${projectDir}/assets/multiqc_nh_sim.html", checkIfExists: true)
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SIMULATION.out.plot_html)
     ch_versions = ch_versions.mix( NH_PLOT_SIMULATION.out.versions )
 
     //NewHybrids pi trace plot
     NH_PLOT_TRACE(
-        nh_trace
+        nh_trace,
+        file("${projectDir}/assets/multiqc_nh_trace.html", checkIfExists: true)
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_TRACE.out.plot_html)
     ch_versions = ch_versions.mix( NH_PLOT_TRACE.out.versions )
@@ -133,6 +138,7 @@ workflow GENERATE_REPORT {
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, p) },
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, s) },
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, ms) },
+        file("${projectDir}/assets/multiqc_nh_classifications.html", checkIfExists: true)
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_CLASSIFICATIONS.out.plot_html)
     ch_versions = ch_versions.mix( NH_PLOT_CLASSIFICATIONS.out.versions )
@@ -142,7 +148,9 @@ workflow GENERATE_REPORT {
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, nm) },
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, p) },
         nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, s) },
-        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, ms) }
+        nh_inputs.map{m, nr, nm, ms, p, s -> tuple(m, ms) },
+        file("${projectDir}/assets/multiqc_nh_summary.html", checkIfExists: true),
+        file("${projectDir}/assets/multiqc_nh_summary_masked.html", checkIfExists: true)
     )
     ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json)
     ch_multiqc_files = ch_multiqc_files.join(NH_SUMMARY_TABLE.out.table_json_masked)
@@ -171,7 +179,8 @@ workflow GENERATE_REPORT {
                 ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, p) },
                 ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, s) },
                 ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, g) },
-                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, mask) }
+                ch_spatial_inputs.map{m, nr, nm, mask, p, s, g -> tuple(m, mask) },
+                file("${projectDir}/assets/multiqc_nh_spatial.html", checkIfExists: true)
             )
             ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SPATIAL.out.plot_html)
             ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )
@@ -188,7 +197,8 @@ workflow GENERATE_REPORT {
                 ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, p) },
                 ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, s) },
                 tuple( [], [] ),
-                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, mask) }
+                ch_spatial_inputs.map { m, nr, nm, mask,  p, s -> tuple(m, mask) },
+                file("${projectDir}/assets/multiqc_nh_spatial.html", checkIfExists: true)
             )
             ch_multiqc_files = ch_multiqc_files.join(NH_PLOT_SPATIAL.out.plot_html)
             ch_versions = ch_versions.mix( NH_PLOT_SPATIAL.out.versions )
@@ -204,15 +214,20 @@ workflow GENERATE_REPORT {
         // Not planned for now (inflates report size too much)
 
         // MCMC summary stats
-        BGC_MCMC_SUMMARY( bgc_output )
+        BGC_MCMC_SUMMARY( bgc_output, file("${projectDir}/assets/multiqc_bgc_summary.html", checkIfExists: true) )
         ch_multiqc_files = ch_multiqc_files.join(BGC_MCMC_SUMMARY.out.table_json)
 
         // Hybrid indices
-        BGC_PLOT_HINDEX( bgc_output )
+        BGC_PLOT_HINDEX( bgc_output, file("${projectDir}/assets/multiqc_bgc_hindex.html", checkIfExists: true) )
         ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_HINDEX.out.plot_html)
 
         // Genomic clines and alpha-beta plot
-        BGC_PLOT_CLINES( bgc_output )
+        BGC_PLOT_CLINES(
+            bgc_output,
+            file("${projectDir}/assets/multiqc_bgc_gencline_plot.html", checkIfExists: true),
+            file("${projectDir}/assets/multiqc_bgc_gencline_scatter.html", checkIfExists: true),
+            file("${projectDir}/assets/multiqc_bgc_gencline_single.html", checkIfExists: true)
+        )
         ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.cline_plot_html)
         ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.scatter_plot_html)
         ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.single_plot_html)
@@ -284,7 +299,8 @@ workflow GENERATE_REPORT {
     )
 
     CUSTOMIZE_REPORT(
-        MULTIQC.out.report
+        MULTIQC.out.report,
+        file("${projectDir}/docs/images/logo.b64", checkIfExists: true)
     )
 
     emit:

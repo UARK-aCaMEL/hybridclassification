@@ -10,6 +10,7 @@ process NH_PLOT_CLASSIFICATIONS {
         tuple val(meta3), path(popmap)
         tuple val(meta4), path(speciesmap)
         tuple val(meta5), path(mask)
+        path(template)
     output:
         tuple val(meta), path("${meta.id}_nh_classifications_mqc.html"), emit: plot_html
         path("versions.yml")   , emit: versions
@@ -23,7 +24,7 @@ process NH_PLOT_CLASSIFICATIONS {
         --popmap ${popmap} \\
         --speciesmap ${speciesmap} \\
         --mask ${mask} \\
-        --template ${baseDir}/assets/multiqc_nh_classifications.html \\
+        --template ${template} \\
         --out "${meta.id}_nh_classifications_mqc.html" \\
         ${args}
 

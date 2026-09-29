@@ -9,6 +9,7 @@ process PLOT_ADMIXTURE {
         tuple val(meta2), path(inds)
         tuple val(meta3), path(pops)
         tuple val(meta4), path(candidates)
+        path(template)
     output:
         tuple val(meta), path("${meta.id}_admixture_bestk_mqc.html"), emit: admixture_html
         path("versions.yml")   , emit: versions
@@ -20,7 +21,7 @@ process PLOT_ADMIXTURE {
         --clumpp ${clumppfile} \\
         --inds ${inds} \\
         --pops ${pops} \\
-        --template ${baseDir}/assets/multiqc_admixture_bestk.html \\
+        --template ${template} \\
         --out "${meta.id}_admixture_bestk_mqc.html" \\
         --order_cluster 1 \\
         --candidates ${candidates} \\

@@ -6,6 +6,7 @@ process BGC_MCMC_SUMMARY {
 
     input:
         tuple val(meta),        path(bgc_results)
+        path(template)
 
     output:
         tuple val(meta), path("${meta.id}_bgc_summary_mqc.json"),      emit: table_json
@@ -42,7 +43,7 @@ process BGC_MCMC_SUMMARY {
     bgc_summary_table.py \\
         --gencline "\${GENCLINE_SUMMARY}" \\
         --hindex   "\${HINDEX_SUMMARY}" \\
-        --template ${baseDir}/assets/multiqc_bgc_summary.html \\
+        --template ${template} \\
         --out      "${meta.id}_bgc_summary_mqc.json" \\
         ${args}
     """

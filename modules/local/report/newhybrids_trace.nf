@@ -6,6 +6,7 @@ process NH_PLOT_TRACE {
 
     input:
         tuple val(meta), path(nh_trace)
+        path(template)
     output:
         tuple val(meta), path("${meta.id}_nh_trace_mqc.html"), emit: plot_html
         path("versions.yml")   , emit: versions
@@ -15,7 +16,7 @@ process NH_PLOT_TRACE {
     """
     plot_nh_trace.py \\
         --trace ${nh_trace} \\
-        --template ${baseDir}/assets/multiqc_nh_trace.html \\
+        --template ${template} \\
         --burnin ${params.nh_burnin} \\
         --out "${meta.id}_nh_trace_mqc.html" \\
         ${args}

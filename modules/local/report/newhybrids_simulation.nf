@@ -7,6 +7,7 @@ process NH_PLOT_SIMULATION {
     input:
         tuple val(meta), path(sim_result)
         tuple val(meta2), path(sim_map)
+        path(template)
     output:
         tuple val(meta), path("${meta.id}_nh_sim_mqc.html"), emit: plot_html
         path("versions.yml")   , emit: versions
@@ -18,7 +19,7 @@ process NH_PLOT_SIMULATION {
         --result ${sim_result} \\
         --map ${sim_map} \\
         --threshold ${params.prob_threshold} \\
-        --template ${baseDir}/assets/multiqc_nh_sim.html \\
+        --template ${template} \\
         --out "${meta.id}_nh_sim_mqc.html" \\
         ${args}
 

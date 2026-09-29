@@ -9,6 +9,7 @@ process NH_PLOT_OUTLIERS {
     tuple val(meta2), path(hindex_popmap)
     tuple val(meta3), path(pofz)
     tuple val(meta4), path(index_map)
+    path(template)
 
     output:
     tuple val(meta), path("${meta.id}_nh_outliers_mqc.html"),     emit: plot_html
@@ -23,7 +24,7 @@ process NH_PLOT_OUTLIERS {
         --hindex_popmap ${hindex_popmap} \\
         --prob_threshold ${params.prob_threshold} \\
         --alpha ${params.outlier_alpha} \\
-        --template ${baseDir}/assets/multiqc_nh_outliers.html \\
+        --template ${template} \\
         --out "${meta.id}_nh_outliers_mqc.html" \\
         ${args}
     """

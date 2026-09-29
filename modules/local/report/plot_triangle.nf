@@ -9,6 +9,7 @@ process PLOT_TRIANGLE {
         tuple val(meta2), path(hindex_fixed)
         tuple val(meta3), path(triangle_popmap)
         tuple val(meta4), path(popmap)
+        path(template)
     output:
         tuple val(meta), path("${meta.id}_triangle_mqc.html"), emit: plot_html
         path("versions.yml")   , emit: versions
@@ -21,7 +22,7 @@ process PLOT_TRIANGLE {
         --result_fixed ${hindex_fixed} \\
         --popmap ${popmap} \\
         --triangle_map ${triangle_popmap} \\
-        --template ${baseDir}/assets/multiqc_triangle.html \\
+        --template ${template} \\
         --out "${meta.id}_triangle_mqc.html" \\
         ${args}
 

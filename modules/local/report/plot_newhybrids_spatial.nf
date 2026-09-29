@@ -11,6 +11,7 @@ process NH_PLOT_SPATIAL {
         tuple val(meta4), path(site_coords)
         tuple val(meta5), path(geo_data)
         tuple val(meta6), path(mask)
+        path(template)
     output:
         tuple val(meta), path("${meta.id}_nh_spatial_mqc.html"), emit: plot_html
         tuple val(meta), path("${meta.id}_points.tsv"), emit: table
@@ -24,7 +25,7 @@ process NH_PLOT_SPATIAL {
         --result ${nh_results} \\
         --result_map ${nh_map} \\
         --popmap ${popmap} \\
-        --template ${baseDir}/assets/multiqc_nh_spatial.html \\
+        --template ${template} \\
         --out "${meta.id}_nh_spatial_mqc.html" \\
         --site_coords ${site_coords} \\
         --threshold ${params.prob_threshold} \\

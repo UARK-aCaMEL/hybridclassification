@@ -9,13 +9,14 @@ process CUSTOMIZE_REPORT {
 
     input:
         tuple val(meta), path(in_report)
+        path(logo_b64)
 
     output:
         tuple val(meta), path("*multiqc_report.html"), emit: report
 
     script:
     """
-    encoded_logo=\$(cat ${baseDir}/docs/images/logo.b64)
+    encoded_logo=\$(cat ${logo_b64})
 
     echo "<h1 id=\\"page_title\\">
     <a href=\\"https://github.com/UARK-aCaMEL\\" target=\\"_blank\\">
@@ -25,7 +26,7 @@ process CUSTOMIZE_REPORT {
 
     awk '
         BEGIN {in_block=0}
-        /<h1 id="page_title">/ {print "_HEADER_REPLACEMENT_"; in_block=1; next}
+        /<h1 id="page_title"/ {print "_HEADER_REPLACEMENT_"; in_block=1; next}
         /<\\/h1>/ && in_block {in_block=0; next}
         !in_block {print}
     ' ${in_report} | sed -e "/_HEADER_REPLACEMENT_/ {

@@ -6,6 +6,7 @@ process BGC_PLOT_HINDEX {
 
     input:
         tuple val(meta), path(bgc_results)
+        path(template)
 
     output:
         tuple val(meta), path("${meta.id}_hindex_plot_mqc.html"), emit: plot_html
@@ -42,7 +43,7 @@ process BGC_PLOT_HINDEX {
     bgc_plot_hindex.py \\
         --order    "\${ORDER_FILE}" \\
         --hindex   "\${HI_FILE}" \\
-        --template ${baseDir}/assets/multiqc_bgc_hindex.html \\
+        --template ${template} \\
         --out      "${meta.id}_hindex_plot_mqc.html" \\
         ${args}
     """
