@@ -1,6 +1,6 @@
 {
     "name": "aCaMEL/hybridclassification",
-    "homePage": "https://github.com/aCaMEL/hybridclassification",
+    "homePage": "https://github.com/UARK-aCaMEL/hybridclassification",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {
