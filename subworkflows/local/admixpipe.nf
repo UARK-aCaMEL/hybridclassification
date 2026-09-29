@@ -2,7 +2,7 @@
 // Run Steve Mussmann's Admixture Pipeline (AdmixPipe 3.0)
 //
 
-include { TABIX_BGZIP }       from '../../modules/nf-core/tabix/bgzip/main'
+include { HTSLIB_BGZIPTABIX as DECOMPRESS_VCF } from '../../modules/nf-core/htslib/bgziptabix/main'
 include { ADMIXTUREPIPELINE } from '../../modules/local/admixpipe/admixturepipeline.nf'
 include { CLUMPAK }           from '../../modules/local/admixpipe/submitclumpak.nf'
 include { CVSUM }             from '../../modules/local/admixpipe/cvsum.nf'
@@ -23,14 +23,16 @@ workflow ADMIXPIPE {
     }
 
     // If input was vcf.gz, decompress
-    TABIX_BGZIP(
+    DECOMPRESS_VCF(
         ch_vcf_branch.vcfgz
-            .map { meta,vcf,popmap -> tuple(meta,vcf) }
+            .map { meta,vcf,popmap -> [ meta, vcf, [], [] ] },
+        'decompress',
+        false,
+        'vcf'
     )
-    ch_versions = ch_versions.mix( TABIX_BGZIP.out.versions )
 
-    // Combine uncompressed .vcf with bgzipped .vcf
-    ch_vcf = TABIX_BGZIP.out.output.mix(
+    // Combine uncompressed .vcf with decompressed .vcf
+    ch_vcf = DECOMPRESS_VCF.out.output.mix(
         ch_vcf_branch.vcf_plain
             .map { meta,vcf,popmap -> tuple(meta,vcf) }
     )

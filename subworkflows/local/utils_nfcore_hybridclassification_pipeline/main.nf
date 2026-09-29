@@ -15,8 +15,7 @@ include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
 include { UTILS_NFCORE_PIPELINE     } from '../../nf-core/utils_nfcore_pipeline'
-include { TABIX_TABIX               } from '../../../modules/nf-core/tabix/tabix/main'
-include { TABIX_BGZIP               } from '../../../modules/nf-core/tabix/bgzip/main'
+include { HTSLIB_BGZIPTABIX as BGZIP_INDEX_VCF } from '../../../modules/nf-core/htslib/bgziptabix/main'
 include { UTILS_NEXTFLOW_PIPELINE   } from '../../nf-core/utils_nextflow_pipeline'
 
 /*
@@ -111,11 +110,13 @@ workflow PIPELINE_INITIALISATION {
         }
         .set { ch_input }
 
-    // Process VCF inputs
-    TABIX_BGZIP ( ch_input.vcf )
-    ch_tabix_vcf_input = ch_input.vcfgz
-        | mix (TABIX_BGZIP.out.output )
-    TABIX_TABIX( ch_tabix_vcf_input )
+    // Bgzip uncompressed VCFs (bgzipped inputs are linked as they are) and index them
+    BGZIP_INDEX_VCF(
+        ch_input.vcf.mix(ch_input.vcfgz).map { meta, file -> [ meta, file, [], [] ] },
+        'compress',
+        true,
+        'vcf'
+    )
 
     //
     // Create channel for the popmap
@@ -209,13 +210,9 @@ workflow PIPELINE_INITIALISATION {
         }
         .set { ch_combinations }
 
-    // Collect versions
-    ch_versions = ch_versions.mix(TABIX_BGZIP.out.versions)
-    ch_versions = ch_versions.mix(TABIX_TABIX.out.versions)
-
     emit:
-    vcf       = ch_tabix_vcf_input
-    tbi       = TABIX_TABIX.out.tbi
+    vcf       = BGZIP_INDEX_VCF.out.output
+    tbi       = BGZIP_INDEX_VCF.out.index
     popmap    = ch_popmap
     speciesmap = ch_speciesmap
     site_coords = ch_site_coords
