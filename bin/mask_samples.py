@@ -202,7 +202,8 @@ def main():
     print(f"✅ Masked {len(masked)} samples → {mask_file}")
 
     table_file = f"{args.out_prefix}_mask_table.tsv"
-    df_res.to_csv(table_file, sep='\t', index=False)
+    # 6 significant digits: the last digits of D2 and p depend on the CPU's linear algebra kernels
+    df_res.to_csv(table_file, sep='\t', index=False, float_format='%.6g')
     print(f"✅ Detailed table → {table_file}")
 
 if __name__ == '__main__':
