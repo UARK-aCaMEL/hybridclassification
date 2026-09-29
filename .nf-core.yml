@@ -25,3 +25,4 @@ template:
   prefix: aCaMEL
   skip:
   - igenomes
+  - fastqc
