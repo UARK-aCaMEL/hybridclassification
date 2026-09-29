@@ -9,12 +9,32 @@ nextflow_pipeline {
         when {
             params {
                 outdir = "$outputDir"
+                seed   = 1
             }
         }
 
         then {
             // stable_path: All files + folders in ${params.outdir}/ with a stable path (including file name)
-            def stable_path = getAllFilesFromDir(params.outdir, relative: true, includeDir: true, ignore: ['pipeline_info/*.{html,json,txt}'])
+            def stable_path = getAllFilesFromDir(params.outdir, relative: true, includeDir: true, ignore: [
+                // timestamped Nextflow reports
+                'pipeline_info/*.{html,json,txt}',
+                // CLUMPAK names its job zip and summary PDF after the epoch-ms job id
+                '*/admixpipe/clumpak/clumpakOutput/*.zip',
+                '*/admixpipe/clumpak/clumpakOutput/job_*_pipeline_summary.pdf',
+                // CLUMPAK, distruct and evalAdmix only write MinorCluster/MinClust outputs if MCL finds
+                // more than one mode for a K. That depends on the ADMIXTURE K>=2 replicates, so it can change with the seed
+                '*/admixpipe/clumpak/clumpakOutput/K=*.MinorCluster*.png',
+                '*/admixpipe/clumpak/clumpakOutput/K=*/MinorCluster*',
+                '*/admixpipe/clumpak/clumpakOutput/K=*/MinorCluster*/**',
+                '*/admixpipe/distruct/*.MinorCluster*',
+                '*/admixpipe/distruct/clumpakOutput/best_results/*.MinorCluster*',
+                '*/admixpipe/evaladmix/*MinClust*',
+                // MultiQC's static plot export depends on the host (it fails under amd64 emulation)
+                '*/report/multiqc_plots',
+                '*/report/multiqc_plots/**',
+                // SNPio's hashed HDF5 cache names
+                '*/snpio/*/*_output/data/vcf/nremover/vcf_attributes_filtered_*.h5'
+            ])
             // stable_content: All files in ${params.outdir}/ with stable content
             def stable_content = getAllFilesFromDir(params.outdir, ignoreFile: 'tests/.nftignore')
             assert workflow.success
