@@ -220,14 +220,9 @@ workflow GENERATE_REPORT {
     //
     // Prepare MultiQC files
     //
-    ch_multiqc_config        = Channel.fromPath(
-        "$projectDir/assets/multiqc_config.yml", checkIfExists: true)
-    ch_multiqc_custom_config = params.multiqc_config ?
-        Channel.fromPath(params.multiqc_config, checkIfExists: true) :
-        Channel.empty()
-    ch_multiqc_logo          = params.multiqc_logo ?
-        Channel.fromPath(params.multiqc_logo, checkIfExists: true) :
-        Channel.empty()
+    def multiqc_configs = [ file("$projectDir/assets/multiqc_config.yml", checkIfExists: true) ] +
+        ( params.multiqc_config ? [ file(params.multiqc_config, checkIfExists: true) ] : [] )
+    def multiqc_logo    = params.multiqc_logo ? file(params.multiqc_logo, checkIfExists: true) : []
 
     summary_params      = paramsSummaryMap(
         workflow, parameters_schema: "nextflow_schema.json")
@@ -248,11 +243,9 @@ workflow GENERATE_REPORT {
         .combine(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true)
     )
 
+    // One report per species pair: [ meta, report files, configs, logo, replace_names, sample_names ]
     MULTIQC (
-        ch_multiqc_files,
-        ch_multiqc_config.toList(),
-        ch_multiqc_custom_config.toList(),
-        ch_multiqc_logo.toList()
+        ch_multiqc_files.map { row -> [ row[0], row[1..-1].flatten(), multiqc_configs, multiqc_logo, [], [] ] }
     )
 
     CUSTOMIZE_REPORT(
