@@ -33,6 +33,7 @@ workflow NEWHYBRIDS {
         ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, tbi_file] },
         ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] }
     )
+    ch_versions = ch_versions.mix( SNPIO_POPFILTER.out.versions )
 
     //
     // reduce to top X loci by Fst
@@ -46,6 +47,7 @@ workflow NEWHYBRIDS {
         ch_top_loci.map { m, p, v, t -> [m, t] },
         ch_top_loci.map { m, p, v, t -> [m, p] }
     )
+    ch_versions = ch_versions.mix( TOP_LOCI_FST.out.versions )
 
     //
     // Join TOP_LOCI_FST output with popmap for proper matching

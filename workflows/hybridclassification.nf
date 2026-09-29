@@ -52,6 +52,7 @@ workflow HYBRIDCLASSIFICATION {
         ch_snpio_input.map { c, m, v, t, p -> [m, p] },
         ch_snpio_input.map { c, m, v, t, p -> c },
     )
+    ch_versions = ch_versions.mix(SNPIO_SELECT.out.versions)
 
     //
     //VCF pre-processing

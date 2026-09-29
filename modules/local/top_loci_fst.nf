@@ -14,6 +14,7 @@ process TOP_LOCI_FST {
     output:
     tuple val(meta), path("${meta.id}_top${params.panel_size}_fst.vcf"), emit: top_vcf
     tuple val(meta), path("${meta.id}_fst_per_locus.tsv"),     emit: fst_table
+    path "versions.yml",                                        emit: versions
 
     script:
     """

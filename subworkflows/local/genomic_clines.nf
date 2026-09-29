@@ -27,6 +27,7 @@ workflow GENOMIC_CLINES {
         ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, tbi_file] },
         ch_joined_inputs.map { meta, vcf_file, tbi_file, popmap_file -> [meta, popmap_file] }
     )
+    ch_versions = ch_versions.mix( SNPIO_POPFILTER.out.versions )
 
     //
     // Format conversion and filter on delta

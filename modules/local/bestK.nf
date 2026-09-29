@@ -51,7 +51,7 @@ process BESTK {
     # Log versions
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        awk: \$(awk --version | grep -oP '(?<=GNU Awk ).*?(?=, )')
+        awk: \$(awk --version | head -1 | cut -d' ' -f3 | tr -d ',')
     END_VERSIONS
     """
 }
