@@ -9,8 +9,24 @@ Initial release of aCaMEL/hybridclassification, created with the [nf-core](https
 
 ### `Added`
 
+- `--seed` for reproducible runs. It seeds SNP thinning, every ADMIXTURE run, the hybrid simulations, NewHybrids and bgchm. If unset, a seed is derived from the session ID; it is kept by `-resume`, printed at startup and recorded in the report.
+- evalAdmix model fit for every K, with a report section for K = 2 (the model used to find candidate hybrids).
+- All pipeline parameters in `nextflow_schema.json`, so they are validated and listed by `--help`.
+
 ### `Fixed`
 
+- DISTRUCT re-ran on every `-resume` (it wrote into CLUMPAK's output directory), and so did everything after it.
+- NewHybrids re-ran on every `-resume` (its seeds were drawn at random in the script block).
+- `TOP_LOCI_FST` dropped the header line of the per-locus F<sub>ST</sub> table.
+- `--geo_data_dir` defaulted to a path relative to the launch directory.
+- Only biallelic SNPs are kept. SNPio 1.7 keeps every allele at multiallelic sites, which the NewHybrids, simulation and bgc converters do not handle.
+- Strict `nextflow lint` errors.
+
 ### `Dependencies`
+
+- nf-core template 2.14.1 → 4.1.0
+- SNPio 1.3.21 → 1.7.6
+- AdmixPipe 3.2 → 3.2.2
+- nf-core `tabix/bgzip` and `tabix/tabix` (deprecated) replaced by `htslib/bgziptabix`
 
 ### `Deprecated`
