@@ -6,6 +6,7 @@ include { randomSeed             } from '../../subworkflows/local/utils_nfcore_h
 include { softwareVersionsToYAML } from '../../subworkflows/nf-core/utils_nfcore_pipeline'
 
 include { PLOT_ADMIXTURE } from '../../modules/local/report/plot_admixture.nf'
+include { PLOT_EVALADMIX } from '../../modules/local/report/plot_evaladmix.nf'
 include { NH_PLOT_CLASSIFICATIONS } from '../../modules/local/report/plot_newhybrids.nf'
 include { NH_PLOT_TRACE } from '../../modules/local/report/newhybrids_trace.nf'
 include { NH_SUMMARY_TABLE } from '../../modules/local/report/newhybrids_summary.nf'
@@ -26,6 +27,9 @@ workflow GENERATE_REPORT {
     pops
     k2_clumpp
     bestK_clumpp
+    qfilepaths
+    evaladmix_fam
+    evaladmix_corres
     nh_results
     nh_trace
     nh_map
@@ -76,6 +80,14 @@ workflow GENERATE_REPORT {
     )
     ch_multiqc_files = ch_multiqc_files.join( PLOT_ADMIXTURE.out.admixture_html )
     ch_versions = ch_versions.mix( PLOT_ADMIXTURE.out.versions )
+
+    // evalAdmix fit of the K = 2 model
+    PLOT_EVALADMIX(
+        qfilepaths.join(evaladmix_fam).join(evaladmix_corres),
+        file("${projectDir}/assets/multiqc_evaladmix_k2.html", checkIfExists: true)
+    )
+    ch_multiqc_files = ch_multiqc_files.join( PLOT_EVALADMIX.out.plot_html )
+    ch_versions = ch_versions.mix( PLOT_EVALADMIX.out.versions )
 
     //Triangle plot
     tri_input = triangle_hindex

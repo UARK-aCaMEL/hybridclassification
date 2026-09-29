@@ -2,10 +2,10 @@ process CLUMPAK {
     tag "$meta.id"
     label 'process_medium'
 
-    container 'docker.io/mussmann/admixpipe:3.2'
+    container 'docker.io/mussmann/admixpipe:3.2.2'
 
     input:
-    tuple val(meta), path(results), path(inds), path(pops)
+    tuple val(meta), path(results), path(inds), path(pops), path(admixpipe_args) // admixturePipeline.json, read by submitClumpak.py
 
     output:
     tuple val(meta), path("clumpakOutput"),   emit: output
@@ -19,6 +19,9 @@ process CLUMPAK {
         export PATH="/app/bin:/app/scripts/python/clumpak:/app/scripts/python/admixturePipeline:\$PATH"
     fi
 
+    # CLUMPAK and distruct are Perl; fix hash order so output order is reproducible
+    export PERL_HASH_SEED=0 PERL_PERTURB_KEYS=0
+
     submitClumpak.py \\
         -r ${results} \\
         -p ${meta.id} \\
@@ -27,7 +30,7 @@ process CLUMPAK {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        AdmixPipe: 3.2
+        AdmixPipe: 3.2.2
         CLUMPAK: 1.1
     END_VERSIONS
     """

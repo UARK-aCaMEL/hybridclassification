@@ -2,7 +2,7 @@ process ADMIXTUREPIPELINE {
     tag "$meta.id"
     label 'process_large'
 
-    container 'docker.io/mussmann/admixpipe:3.2'
+    container 'docker.io/mussmann/admixpipe:3.2.2'
 
     input:
     tuple val(meta), path(vcf), path(popmap)
@@ -18,6 +18,7 @@ process ADMIXTUREPIPELINE {
     tuple val(meta), path("${meta.id}.map"),             emit: map
     tuple val(meta), path("${meta.id}.ped"),             emit: ped
     tuple val(meta), path("${meta.id}.qfiles.json"),     emit: qfiles_json
+    tuple val(meta), path("admixturePipeline.json"),     emit: args_json // AdmixPipe >= 3.2.2; read by CLUMPAK
     path "versions.yml",     emit: versions
 
     script:
@@ -43,7 +44,7 @@ process ADMIXTUREPIPELINE {
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        AdmixPipe: 3.2
+        AdmixPipe: 3.2.2
         VCFtools: 0.1.16
         PLINK: 20220402
         Admixture: 1.30

@@ -7,6 +7,7 @@ include { ADMIXTUREPIPELINE } from '../../modules/local/admixpipe/admixturepipel
 include { CLUMPAK }           from '../../modules/local/admixpipe/submitclumpak.nf'
 include { CVSUM }             from '../../modules/local/admixpipe/cvsum.nf'
 include { DISTRUCT }          from '../../modules/local/admixpipe/distructrerun.nf'
+include { EVALADMIX }         from '../../modules/local/admixpipe/evaladmix.nf'
 include { BESTK }             from '../../modules/local/bestK.nf'
 
 workflow ADMIXPIPE {
@@ -50,6 +51,7 @@ workflow ADMIXPIPE {
     clumpakIn  = ADMIXTUREPIPELINE.out.results
                     .join(ADMIXTUREPIPELINE.out.inds)
                     .join(ADMIXTUREPIPELINE.out.pops)
+                    .join(ADMIXTUREPIPELINE.out.args_json)
     CLUMPAK( clumpakIn )
     ch_versions = ch_versions.mix( CLUMPAK.out.versions )
 
@@ -68,6 +70,20 @@ workflow ADMIXPIPE {
     CVSUM( cvsumIn )
     ch_versions = ch_versions.mix( CVSUM.out.versions )
 
+    // Assess model fit with evalAdmix
+    evalAdmixIn = ADMIXTUREPIPELINE.out.ped
+                    .join(ADMIXTUREPIPELINE.out.map)
+                    .join(ADMIXTUREPIPELINE.out.pfiles)
+                    .join(ADMIXTUREPIPELINE.out.qfiles)
+                    .join(ADMIXTUREPIPELINE.out.qfiles_json)
+                    .join(ch_popmap)
+                    .join(CLUMPAK.out.output)
+                    .join(DISTRUCT.out.major_clusters)
+                    .join(DISTRUCT.out.cvruns_json)
+                    .join(DISTRUCT.out.qfilepaths_json)
+    EVALADMIX( evalAdmixIn )
+    ch_versions = ch_versions.mix( EVALADMIX.out.versions )
+
     // Fetch results for the best K value
     ch_bestk = CVSUM.out.cv_output
                 .join( DISTRUCT.out.best_results )
@@ -85,5 +101,8 @@ workflow ADMIXPIPE {
     inds         = ADMIXTUREPIPELINE.out.inds
     pops         = ADMIXTUREPIPELINE.out.pops
     cv_file      = CVSUM.out.cv_output
+    qfilepaths   = DISTRUCT.out.qfilepaths_json
+    corres       = EVALADMIX.out.corres
+    fam          = EVALADMIX.out.fam
     versions     = ch_versions
 }
