@@ -6,7 +6,7 @@ process STAGE_GEODATA_LAYERS {
 
     input:
         tuple val(meta), path(json)
-        tuple val(meta), path(dir)
+        tuple val(meta2), path(dir)
     output:
         tuple val(meta), path("geo_data_files"), emit: geo_data_dir
 

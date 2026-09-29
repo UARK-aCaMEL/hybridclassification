@@ -300,7 +300,7 @@ def validateInputParameters() {
     }
 
     def checkInteger = { name, value, min = null, max = null ->
-        if (!isIntegerLike(value)) {
+        if (!isIntegerLike.call(value)) {
             errors << "Invalid value for --${name}: '${value}'. It must be an integer."
             return
         }
@@ -313,7 +313,7 @@ def validateInputParameters() {
     }
 
     def checkNumeric = { name, value, min = null, max = null, minInclusive = true, maxInclusive = true ->
-        if (!isNumericLike(value)) {
+        if (!isNumericLike.call(value)) {
             errors << "Invalid value for --${name}: '${value}'. It must be numeric."
             return
         }
@@ -342,32 +342,32 @@ def validateInputParameters() {
     }
 
     // Integer parameters
-    checkInteger('maxk', params.maxk, 1)
-    checkInteger('thin_dist', params.thin_dist, 0)
-    checkInteger('sample_size', params.sample_size, 1)
-    checkInteger('n_reps', params.n_reps, 1)
-    checkInteger('panel_size', params.panel_size, 1)
-    checkInteger('nh_burnin', params.nh_burnin, 0)
-    checkInteger('nh_sweeps', params.nh_sweeps, 1)
-    checkInteger('bgc_iters', params.bgc_iters, 1)
-    checkInteger('bgc_thin', params.bgc_thin, 1)
+    checkInteger.call('maxk', params.maxk, 1)
+    checkInteger.call('thin_dist', params.thin_dist, 0)
+    checkInteger.call('sample_size', params.sample_size, 1)
+    checkInteger.call('n_reps', params.n_reps, 1)
+    checkInteger.call('panel_size', params.panel_size, 1)
+    checkInteger.call('nh_burnin', params.nh_burnin, 0)
+    checkInteger.call('nh_sweeps', params.nh_sweeps, 1)
+    checkInteger.call('bgc_iters', params.bgc_iters, 1)
+    checkInteger.call('bgc_thin', params.bgc_thin, 1)
 
     // Proportions / probabilities / bounded numeric parameters
-    checkNumeric('ind_cov', params.ind_cov, 0, 1, true, true)
-    checkNumeric('snp_cov', params.snp_cov, 0, 1, true, true)
-    checkNumeric('pop_cov', params.pop_cov, 0, 1, true, true)
-    checkNumeric('min_maf', params.min_maf, 0, 0.5, true, true)
-    checkNumeric('ancestry_threshold', params.ancestry_threshold, 0, 1, true, true)
-    checkNumeric('prob_threshold', params.prob_threshold, 0, 1, true, true)
-    checkNumeric('af_dist_min', params.af_dist_min, 0, 1, true, true)
-    checkNumeric('outlier_alpha', params.outlier_alpha, 0, 1, false, false)
-    checkNumeric('bgc_burnin', params.bgc_burnin, 0, 1, false, true)
+    checkNumeric.call('ind_cov', params.ind_cov, 0, 1, true, true)
+    checkNumeric.call('snp_cov', params.snp_cov, 0, 1, true, true)
+    checkNumeric.call('pop_cov', params.pop_cov, 0, 1, true, true)
+    checkNumeric.call('min_maf', params.min_maf, 0, 0.5, true, true)
+    checkNumeric.call('ancestry_threshold', params.ancestry_threshold, 0, 1, true, true)
+    checkNumeric.call('prob_threshold', params.prob_threshold, 0, 1, true, true)
+    checkNumeric.call('af_dist_min', params.af_dist_min, 0, 1, true, true)
+    checkNumeric.call('outlier_alpha', params.outlier_alpha, 0, 1, false, false)
+    checkNumeric.call('bgc_burnin', params.bgc_burnin, 0, 1, false, true)
 
     // Boolean parameters
-    checkBoolean('run_bgc', params.run_bgc)
+    checkBoolean.call('run_bgc', params.run_bgc)
 
     // Cross-parameter logic checks
-    if (isIntegerLike(params.panel_size) && isIntegerLike(params.thin_dist)) {
+    if (isIntegerLike.call(params.panel_size) && isIntegerLike.call(params.thin_dist)) {
         if (params.panel_size < 1) {
             errors << "Invalid value for --panel_size: '${params.panel_size}'. It must be >= 1."
         }
@@ -376,12 +376,12 @@ def validateInputParameters() {
         }
     }
 
-    if (isIntegerLike(params.maxk) && params.maxk < 2) {
+    if (isIntegerLike.call(params.maxk) && params.maxk < 2) {
         log.warn "Parameter --maxk is '${params.maxk}'. Structure-like clustering usually expects K >= 2."
     }
 
     if (params.run_bgc instanceof Boolean && params.run_bgc) {
-        if (isIntegerLike(params.bgc_iters) && isIntegerLike(params.bgc_thin)) {
+        if (isIntegerLike.call(params.bgc_iters) && isIntegerLike.call(params.bgc_thin)) {
             if (params.bgc_thin > params.bgc_iters) {
                 errors << "Invalid combination: --bgc_thin (${params.bgc_thin}) cannot be greater than --bgc_iters (${params.bgc_iters})."
             }

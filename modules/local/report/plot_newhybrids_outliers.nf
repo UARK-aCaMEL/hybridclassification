@@ -8,7 +8,7 @@ process NH_PLOT_OUTLIERS {
     tuple val(meta), path(hindex)
     tuple val(meta2), path(hindex_popmap)
     tuple val(meta3), path(pofz)
-    tuple val(meta3), path(index_map)
+    tuple val(meta4), path(index_map)
 
     output:
     tuple val(meta), path("${meta.id}_nh_outliers_mqc.html"),     emit: plot_html
