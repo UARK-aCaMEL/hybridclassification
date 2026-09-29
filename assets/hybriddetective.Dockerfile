@@ -87,4 +87,3 @@ RUN Rscript -e "stopifnot(requireNamespace('hybriddetective', quietly = TRUE))"
 
 WORKDIR /data
 CMD [\"bash\"]
-

@@ -30,4 +30,3 @@ RUN pip install --no-cache-dir \
       pandas \
       scipy \
       pysam
-

@@ -19,4 +19,3 @@ RUN pip install --no-cache-dir pandas scipy numpy geopandas folium plotly matplo
 
 # Set working directory
 WORKDIR /app
-
