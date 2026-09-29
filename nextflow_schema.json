@@ -30,11 +30,48 @@
                 },
                 "popmap": {
                     "type": "string",
-                    "description": "Tab-delimited population map file"
+                    "description": "Tab-delimited population map: sample and population (sampling site), no header",
+                    "format": "file-path",
+                    "exists": true,
+                    "fa_icon": "fas fa-file-alt"
                 },
                 "speciesmap": {
                     "type": "string",
-                    "description": "Tab-delimited species map file"
+                    "description": "Tab-delimited species map: sample and species, no header",
+                    "format": "file-path",
+                    "exists": true,
+                    "fa_icon": "fas fa-file-alt"
+                },
+                "combinations": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Tab-delimited file of species pairs to test, one pair per line (no header)",
+                    "help_text": "Each line names two species from `--speciesmap`, separated by a tab. The pipeline runs ADMIXTURE, NewHybrids and (optionally) bgc once per pair.",
+                    "fa_icon": "fas fa-file-alt"
+                },
+                "site_coords": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "Tab-delimited sampling-site coordinates (population, latitude, longitude; no header)",
+                    "help_text": "Population names must match `--popmap`. If given, the report maps hybrid classifications by site.",
+                    "fa_icon": "fas fa-map-marker-alt"
+                },
+                "geo_data_config": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "description": "JSON file listing vector layers (for example rivers) to draw on the report maps",
+                    "help_text": "Each entry gives a layer `path` (relative to `--geo_data_dir`), a `z_order` and a `style`. Requires `--site_coords`.",
+                    "fa_icon": "fas fa-layer-group"
+                },
+                "geo_data_dir": {
+                    "type": "string",
+                    "format": "directory-path",
+                    "exists": true,
+                    "description": "Directory containing the layer files named in `--geo_data_config`",
+                    "fa_icon": "fas fa-folder-open"
                 },
                 "email": {
                     "type": "string",
@@ -47,6 +84,176 @@
                     "type": "string",
                     "description": "MultiQC report title. Printed as page header, used for filename if not otherwise specified.",
                     "fa_icon": "fas fa-file-signature"
+                }
+            }
+        },
+        "filtering_options": {
+            "title": "Filtering options",
+            "type": "object",
+            "fa_icon": "fas fa-filter",
+            "description": "SNP and sample filters applied with SNPio to each species pair.",
+            "properties": {
+                "ind_cov": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Maximum proportion of missing data allowed per sample"
+                },
+                "snp_cov": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Maximum proportion of missing data allowed per SNP"
+                },
+                "pop_cov": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Maximum proportion of missing data allowed per SNP within any group (P0, P1, admixed), before NewHybrids and bgc"
+                },
+                "min_maf": {
+                    "type": "number",
+                    "default": 0.05,
+                    "minimum": 0,
+                    "maximum": 0.5,
+                    "description": "Minimum minor allele frequency"
+                },
+                "thin_dist": {
+                    "type": "integer",
+                    "default": 100,
+                    "minimum": 0,
+                    "description": "Keep one SNP (chosen at random, from `--seed`) within each window of this many bp"
+                }
+            }
+        },
+        "admixture_options": {
+            "title": "ADMIXTURE options",
+            "type": "object",
+            "fa_icon": "fas fa-chart-bar",
+            "description": "ADMIXTURE (via AdmixPipe), used to find candidate hybrids.",
+            "properties": {
+                "maxk": {
+                    "type": "integer",
+                    "default": 2,
+                    "minimum": 1,
+                    "description": "Maximum K to run in ADMIXTURE (from K = 1)",
+                    "help_text": "Candidate hybrids are taken from K = 2, so the default runs only K = 1 and 2. Larger values add runs for model comparison in the report."
+                },
+                "ancestry_threshold": {
+                    "type": "number",
+                    "default": 0.9,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Samples whose larger K = 2 ancestry proportion is below this are treated as candidate hybrids"
+                }
+            }
+        },
+        "newhybrids_options": {
+            "title": "NewHybrids options",
+            "type": "object",
+            "fa_icon": "fas fa-project-diagram",
+            "description": "Locus panel, hybrid simulations and NewHybrids classification.",
+            "properties": {
+                "panel_size": {
+                    "type": "integer",
+                    "default": 500,
+                    "minimum": 1,
+                    "description": "Number of loci (highest F<sub>ST</sub> between P0 and P1) used for NewHybrids"
+                },
+                "sample_size": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "description": "Number of individuals simulated per hybrid class, per replicate"
+                },
+                "n_reps": {
+                    "type": "integer",
+                    "default": 4,
+                    "minimum": 1,
+                    "description": "Number of replicate hybrid simulations"
+                },
+                "nh_burnin": {
+                    "type": "integer",
+                    "default": 20000,
+                    "minimum": 0,
+                    "description": "NewHybrids burn-in sweeps"
+                },
+                "nh_sweeps": {
+                    "type": "integer",
+                    "default": 100000,
+                    "minimum": 1,
+                    "description": "NewHybrids sweeps after burn-in"
+                },
+                "prob_threshold": {
+                    "type": "number",
+                    "default": 0.9,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Minimum NewHybrids posterior probability to assign a sample to a hybrid class"
+                },
+                "af_dist_min": {
+                    "type": "number",
+                    "default": 0.7,
+                    "minimum": 0,
+                    "maximum": 1,
+                    "description": "Minimum allele frequency difference between P0 and P1 for loci used in triangle plots and genomic clines"
+                },
+                "outlier_alpha": {
+                    "type": "number",
+                    "default": 0.05,
+                    "exclusiveMinimum": 0,
+                    "exclusiveMaximum": 1,
+                    "description": "p-value cutoff for flagging samples outside the simulated hybrid index and interspecific heterozygosity distribution as unclassified"
+                }
+            }
+        },
+        "genomic_cline_options": {
+            "title": "Genomic cline options",
+            "type": "object",
+            "fa_icon": "fas fa-wave-square",
+            "description": "Optional hybrid index and genomic cline estimation with bgchm.",
+            "properties": {
+                "run_bgc": {
+                    "type": "boolean",
+                    "description": "Estimate hybrid indices and genomic clines with bgchm"
+                },
+                "bgc_iters": {
+                    "type": "integer",
+                    "default": 4000,
+                    "minimum": 1,
+                    "description": "bgchm MCMC iterations"
+                },
+                "bgc_burnin": {
+                    "type": "number",
+                    "default": 0.5,
+                    "exclusiveMinimum": 0,
+                    "maximum": 1,
+                    "description": "Proportion of bgchm iterations discarded as warm-up"
+                },
+                "bgc_thin": {
+                    "type": "integer",
+                    "default": 10,
+                    "minimum": 1,
+                    "description": "bgchm thinning interval"
+                }
+            }
+        },
+        "reproducibility_options": {
+            "title": "Reproducibility options",
+            "type": "object",
+            "fa_icon": "fas fa-dice",
+            "description": "Random seed for the stochastic steps.",
+            "properties": {
+                "seed": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 2147483647,
+                    "description": "Random seed for SNP thinning, ADMIXTURE, hybrid simulation, NewHybrids and bgchm",
+                    "help_text": "Each ADMIXTURE run gets its own seed, drawn from this one. If not set, a seed is derived from the run's session ID: it differs between runs, is kept by `-resume`, is printed at startup, and is recorded in the report. Rerun with `--seed <value>` to reproduce a run. Multithreaded ADMIXTURE is not bit-for-bit deterministic; give ADMIXTUREPIPELINE one CPU for exact reproduction.",
+                    "fa_icon": "fas fa-dice"
                 }
             }
         },
@@ -204,6 +411,21 @@
     "allOf": [
         {
             "$ref": "#/$defs/input_output_options"
+        },
+        {
+            "$ref": "#/$defs/filtering_options"
+        },
+        {
+            "$ref": "#/$defs/admixture_options"
+        },
+        {
+            "$ref": "#/$defs/newhybrids_options"
+        },
+        {
+            "$ref": "#/$defs/genomic_cline_options"
+        },
+        {
+            "$ref": "#/$defs/reproducibility_options"
         },
         {
             "$ref": "#/$defs/institutional_config_options"
