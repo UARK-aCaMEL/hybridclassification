@@ -31,7 +31,7 @@ process TOP_LOCI_FST {
     # select top N
     head -n1 ${meta.id}_fst.weir.fst > ${meta.id}_fst_per_locus.tsv
     tail -n+2 ${meta.id}_fst.weir.fst | sort -k4,4nr > ${meta.id}_fst.body.sorted.tsv
-    head -n ${params.panel_size} ${meta.id}_fst.body.sorted.tsv > ${meta.id}_fst_per_locus.tsv
+    head -n ${params.panel_size} ${meta.id}_fst.body.sorted.tsv >> ${meta.id}_fst_per_locus.tsv
 
     # subset VCF
     tail -n+2 ${meta.id}_fst_per_locus.tsv | cut -f1,2 > positions.txt
