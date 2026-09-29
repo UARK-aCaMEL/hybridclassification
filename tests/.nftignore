@@ -8,6 +8,7 @@
 */admixpipe/clumpak/clumpakOutput/K=*.MinorCluster*.png
 */admixpipe/clumpak/clumpakOutput/K=*/MinorCluster*/**
 */admixpipe/clumpak/clumpakOutput/**/{FilesToIndex,clusterFiles,ClumppIndFile,ClumppPairMatrix,clumppPairMatrixChoped}
+*/admixpipe/clumpak/clumpakOutput/K=*/CLUMPP.files/ClumppIndFile.output
 */admixpipe/distruct/*.pdf
 */admixpipe/distruct/*.MinorCluster*
 */admixpipe/distruct/qfilePaths.json
