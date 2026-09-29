@@ -31,7 +31,9 @@ process TOP_LOCI_FST {
 
     # select top N
     head -n1 ${meta.id}_fst.weir.fst > ${meta.id}_fst_per_locus.tsv
-    tail -n+2 ${meta.id}_fst.weir.fst | sort -k4,4nr > ${meta.id}_fst.body.sorted.tsv
+    # Highest Fst first (the table is CHROM, POS, FST); nan (not variable in the
+    # pair) last; ties by position, in the C locale so the order is portable
+    tail -n+2 ${meta.id}_fst.weir.fst | LC_ALL=C sort -k3,3gr -k1,1 -k2,2n > ${meta.id}_fst.body.sorted.tsv
     head -n ${params.panel_size} ${meta.id}_fst.body.sorted.tsv >> ${meta.id}_fst_per_locus.tsv
 
     # subset VCF
