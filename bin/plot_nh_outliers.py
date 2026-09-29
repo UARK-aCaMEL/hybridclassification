@@ -17,6 +17,7 @@ Usage:
         --template       <HTML header file> \
         --out            <output HTML>
 """
+import re
 import sys
 import argparse
 import numpy as np
@@ -30,6 +31,27 @@ from plotly.subplots import make_subplots
 def read_hindex(path):
     df = pd.read_csv(path, sep="\t", comment="#")
     return df[['Sample','HybridIndex','Heterozygosity']]
+
+def read_num_loci(path):
+    """Number of loci behind the hybrid index table (its '#Num_loci=' header)."""
+    with open(path) as fh:
+        m = re.match(r"#Num_loci=(\d+)", fh.readline().strip())
+    return int(m.group(1)) if m else None
+
+def sim_covariance(pts, n_loci):
+    """Covariance of simulated (HybridIndex, Heterozygosity) points.
+
+    At loci fixed between the parents, a simulated backcross's heterozygosity
+    is exactly twice its hybrid index (or its distance from 1), so the
+    covariance can be singular. Both statistics are discrete, in steps of
+    1/(2L) and 1/L for L loci; if the covariance is singular, add the variance
+    of rounding to one step (step^2 / 12) to each.
+    """
+    cov = np.cov(pts, rowvar=False)
+    if np.linalg.matrix_rank(cov) < 2:
+        n = n_loci or 1
+        cov = cov + np.diag([(1 / (2 * n)) ** 2 / 12, (1 / n) ** 2 / 12])
+    return cov
 
 def read_nh(path):
     cats = ["P0","P1","F1","F2","Bx0","Bx1"]
@@ -73,6 +95,7 @@ def main():
 
     # 1) load H‐index (coords)
     df_h   = read_hindex(args.hindex)         # Sample, HybridIndex, Heterozygosity
+    n_loci = read_num_loci(args.hindex)
 
     # 2) load NewHybrids posteriors + map Index→Sample
     df_nh  = read_nh(args.nh_results)         # Index, Individual, P0…Bx1
@@ -138,7 +161,7 @@ def main():
 
         # ellipse on sim points
         pts = sim_df[['HybridIndex','Heterozygosity']].values
-        mu, cov = pts.mean(axis=0), np.cov(pts, rowvar=False)
+        mu, cov = pts.mean(axis=0), sim_covariance(pts, n_loci)
         xe, ye  = ellipse_coords(mu, cov, args.alpha)
 
         # simulation scatter

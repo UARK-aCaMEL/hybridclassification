@@ -8,6 +8,7 @@ for their assigned NewHybrids category—excluding pure (P0/P1) classes.
 Also outputs a detailed mask table and diagnostic plots per class
 showing the 95% Mahalanobis ellipse.
 """
+import re
 import sys
 import argparse
 from pathlib import Path
@@ -40,6 +41,27 @@ def read_hindex(path):
         if c not in df.columns:
             sys.exit(f"ERROR: Missing column '{c}' in {path}")
     return df
+
+def read_num_loci(path):
+    """Number of loci behind the hybrid index table (its '#Num_loci=' header)."""
+    with open(path) as fh:
+        m = re.match(r"#Num_loci=(\d+)", fh.readline().strip())
+    return int(m.group(1)) if m else None
+
+def sim_covariance(pts, n_loci):
+    """Covariance of simulated (HybridIndex, Heterozygosity) points.
+
+    At loci fixed between the parents, a simulated backcross's heterozygosity
+    is exactly twice its hybrid index (or its distance from 1), so the
+    covariance can be singular. Both statistics are discrete, in steps of
+    1/(2L) and 1/L for L loci; if the covariance is singular, add the variance
+    of rounding to one step (step^2 / 12) to each.
+    """
+    cov = np.cov(pts, rowvar=False)
+    if np.linalg.matrix_rank(cov) < 2:
+        n = n_loci or 1
+        cov = cov + np.diag([(1 / (2 * n)) ** 2 / 12, (1 / n) ** 2 / 12])
+    return cov
 
 def read_nh(path):
     cats = ["P0","P1","F1","F2","Bx0","Bx1"]
@@ -97,6 +119,7 @@ def main():
 
     # Read data
     df_h   = read_hindex(args.hindex)
+    n_loci = read_num_loci(args.hindex)
     df_nh  = read_nh(args.nh_results)
     df_map = load_index_map(args.nh_index)
 
@@ -144,7 +167,7 @@ def main():
 
         # Compute ellipse parameters
         mu     = sim_pts.mean(axis=0)
-        cov    = np.cov(sim_pts, rowvar=False)
+        cov    = sim_covariance(sim_pts, n_loci)
         invcov = inv(cov)
 
         # Empirical points for this class
