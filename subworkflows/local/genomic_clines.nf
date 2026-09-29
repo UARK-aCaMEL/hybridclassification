@@ -11,6 +11,7 @@ workflow GENOMIC_CLINES {
     vcf         // [ val(meta), *.vcf or *.vcf.gz ]
     tbi         // [ val(meta), *.tbi ]
     popmap      // [ val(meta), popmap ]
+    seed        // value: random seed
 
     main:
     ch_versions = Channel.empty()
@@ -49,7 +50,8 @@ workflow GENOMIC_CLINES {
         VCF2BGC.out.parent1_samples,
         VCF2BGC.out.parent2_samples,
         VCF2BGC.out.admix_samples,
-        VCF2BGC.out.locus_order
+        VCF2BGC.out.locus_order,
+        seed
     )
     ch_versions = ch_versions.mix( BGC_HM.out.versions )
 

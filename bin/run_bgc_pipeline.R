@@ -303,6 +303,7 @@ Optional:
   --warmup   Warmup proportion for est_hi / est_genocl where supported (default: 0.5)
   --n_thin   Thinning interval for est_hi / est_genocl where supported (default: 1)
   --ci       Credible interval level for sum2zero (default: 0.90)
+  --seed     Random seed (default: none)
 
 Added validations:
   1) P0/P1/ADMIX glik objects must each have consistent loci counts across their nucleotide matrices,
@@ -355,6 +356,8 @@ n_iters <- as.integer(get_argval(args, "--n_iters", default = "4000"))
 warmup <- as.numeric(get_argval(args, "--warmup", default = "0.5"))
 n_thin <- as.integer(get_argval(args, "--n_thin", default = "1"))
 ci <- as.numeric(get_argval(args, "--ci", default = "0.90"))
+seed <- get_argval(args, "--seed", default = NA_character_)
+if (!is.na(seed)) set.seed(as.integer(seed))
 
 if (is.na(n_iters) || n_iters <= 0) stop2("--n_iters must be a positive integer.")
 if (is.na(warmup) || warmup < 0 || warmup >= 1) stop2("--warmup must be a numeric proportion in [0, 1).")

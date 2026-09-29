@@ -7,6 +7,7 @@ process SIMULATE_HYBRIDS {
     input:
     tuple val(meta), path(vcf)
     tuple val(meta2), path(popmap)
+    val(seed)
 
     output:
     tuple val(meta), path("${meta.id}_simulation.vcf"),     emit: vcf
@@ -25,6 +26,7 @@ process SIMULATE_HYBRIDS {
         --size_f2 ${params.sample_size} \\
         --size_bc ${params.sample_size} \\
         --strategy "freq" \\
+        --seed ${seed} \\
         --out_prefix ${meta.id}
     """
 }

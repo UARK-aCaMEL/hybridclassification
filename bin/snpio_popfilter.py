@@ -47,6 +47,7 @@ def main():
         plot_fontsize=8,
         plot_dpi=300,
         prefix=prefix,
+        save_plots=False,
     )
 
     # Filter by population missingness

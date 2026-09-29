@@ -28,6 +28,7 @@ workflow HYBRIDCLASSIFICATION {
     ch_geo_data
     ch_geo_data_dir
     ch_combinations
+    ch_seed       // value: random seed
 
     main:
 
@@ -63,7 +64,8 @@ workflow HYBRIDCLASSIFICATION {
         .set { ch_filter_input }
 
     SNPIO_FILTER(
-        ch_filter_input
+        ch_filter_input,
+        ch_seed
     )
     ch_versions = ch_versions.mix(SNPIO_FILTER.out.versions)
 
@@ -77,7 +79,8 @@ workflow HYBRIDCLASSIFICATION {
         .set { ch_admixpipe_input }
 
     ADMIXPIPE(
-        ch_admixpipe_input
+        ch_admixpipe_input,
+        ch_seed
     )
     ch_versions = ch_versions.mix(ADMIXPIPE.out.versions)
 
@@ -106,7 +109,8 @@ workflow HYBRIDCLASSIFICATION {
     NEWHYBRIDS(
         ch_joined_nh.map { m, v, t, p -> tuple(m, v) },
         ch_joined_nh.map { m, v, t, p -> tuple(m, t) },
-        ch_joined_nh.map { m, v, t, p -> tuple(m, p) }
+        ch_joined_nh.map { m, v, t, p -> tuple(m, p) },
+        ch_seed
     )
     ch_versions = ch_versions.mix( NEWHYBRIDS.out.versions )
 
@@ -122,7 +126,8 @@ workflow HYBRIDCLASSIFICATION {
         GENOMIC_CLINES(
             ch_joined_bgc.map { m, v, t, p -> tuple(m, v) },
             ch_joined_bgc.map { m, v, t, p -> tuple(m, t) },
-            ch_joined_bgc.map { m, v, t, p -> tuple(m, p) }
+            ch_joined_bgc.map { m, v, t, p -> tuple(m, p) },
+            ch_seed
         )
         ch_versions = ch_versions.mix( GENOMIC_CLINES.out.versions )
         ch_bgc_text  = GENOMIC_CLINES.out.bgc_text

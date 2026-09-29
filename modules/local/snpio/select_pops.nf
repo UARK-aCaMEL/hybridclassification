@@ -2,7 +2,7 @@ process SNPIO_SELECT{
     tag "$pops.id"
     label 'process_medium'
 
-    container 'docker.io/btmartin721/snpio:1.3.21'
+    container 'docker.io/btmartin721/snpio:1.7.6'
 
     input:
     tuple val(meta), path(vcf)
@@ -11,8 +11,8 @@ process SNPIO_SELECT{
     val(pops)
 
     output:
-    tuple val(pops), path("${pops.id}.subset.nremover.vcf.gz"), emit: filtered_vcf
-    tuple val(pops), path("${pops.id}.subset.nremover.vcf.gz.tbi"), emit: filtered_tbi
+    tuple val(pops), path("${pops.id}.subset.vcf.gz"), emit: filtered_vcf
+    tuple val(pops), path("${pops.id}.subset.vcf.gz.tbi"), emit: filtered_tbi
     path "versions.yml",     emit: versions
 
     script:
@@ -26,7 +26,7 @@ process SNPIO_SELECT{
 
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        SNPio: 1.3.21
+        SNPio: \$(python -c "import snpio; print(snpio.__version__)")
     END_VERSIONS
     """
 }

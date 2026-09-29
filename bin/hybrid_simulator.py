@@ -39,6 +39,7 @@ def parse_args():
     p.add_argument("--strategy",  choices=["freq","sampled"], default="freq",
                    help="Simulation strategy: 'freq' (allele-frequency) or 'sampled' (resample parents)")
     p.add_argument("--out_prefix",default="sim",          help="output prefix")
+    p.add_argument("--seed",      type=int, default=None, help="random seed")
     return p.parse_args()
 
 def compute_ref_af(vcf_path, samples, popmap, pop_id):
@@ -95,6 +96,8 @@ def write_vcf_manually(template_vcf, sample_ids, geno_mat, out_vcf_path):
 
 def main():
     args = parse_args()
+    random.seed(args.seed)
+    np.random.seed(args.seed)
     pm_df = pd.read_csv(args.popmap, sep="\t", header=None, names=["sample","pop"] )
     popmap = dict(zip(pm_df["sample"], pm_df["pop"]))
     vcf_in = pysam.VariantFile(args.vcf)

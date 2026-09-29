@@ -95,6 +95,12 @@ workflow PIPELINE_INITIALISATION {
     validateInputParameters()
 
     //
+    // Random seed for SNPio thinning, ADMIXTURE, hybrid simulation, NewHybrids and bgc
+    //
+    def random_seed = randomSeed()
+    log.info(params.seed != null ? "Random seed: ${random_seed}" : "Random seed: ${random_seed} (not set; rerun with --seed ${random_seed} to reproduce this run)")
+
+    //
     // Create channel from input file provided through params.input
     //
 
@@ -219,6 +225,7 @@ workflow PIPELINE_INITIALISATION {
     geo_data    = ch_geo_data_config
     geo_data_dir = ch_geo_data_dir
     combinations = ch_combinations
+    seed      = channel.value(random_seed)
     versions  = ch_versions
 }
 
@@ -390,6 +397,14 @@ def validateInputParameters() {
         throw new IllegalArgumentException("Invalid input parameter(s). See error messages above.")
     }
 }
+//
+// Random seed: --seed if given, otherwise derived from the session ID, which is
+// new for every run but kept by -resume (so cached tasks stay valid)
+//
+def randomSeed() {
+    return params.seed != null ? params.seed as long : Math.floorMod(workflow.sessionId.hashCode() as long, 2147483646L) + 1
+}
+
 //
 // Generate methods description for MultiQC
 //

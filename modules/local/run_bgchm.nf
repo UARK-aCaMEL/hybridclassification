@@ -12,6 +12,7 @@ process BGC_HM {
     tuple val(meta5), path(glikp1_samples)
     tuple val(meta6), path(glikadmix_samples)
     tuple val(meta7), path(locus_order)
+    val(seed)
 
     output:
     path "versions.yml",                                      emit: versions
@@ -32,6 +33,7 @@ process BGC_HM {
         --p_warmup ${params.bgc_burnin} \\
         --ci 0.90 \\
         --n_thin ${params.bgc_thin} \\
+        --seed ${seed} \\
         ${args}
 
     # Copy the order files into results_*/text using the same naming style as R outputs

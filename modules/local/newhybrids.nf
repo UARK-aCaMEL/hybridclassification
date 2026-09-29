@@ -5,6 +5,7 @@ process RUN_NEWHYBRIDS {
 
     input:
     tuple val(meta), path(nh_file)
+    val(seed)
 
     output:
     path "versions.yml",                                  emit: versions
@@ -21,12 +22,10 @@ process RUN_NEWHYBRIDS {
     tuple val(meta), path("pi_trace.tsv"),                emit: pi_trace
 
     script:
-    def maxInt = (2**31) - 1
-    def randOffset = new Random().nextInt(maxInt)
-    def seed1 = Math.abs((task.index.toInteger() + randOffset) % maxInt)
-    if( seed1 == 0 ) seed1 = 1
-    def seed2 = (seed1 + 1) % maxInt
-    if( seed2 == 0 ) seed2 = 1
+    // NewHybrids takes two positive seeds; both come from the pipeline seed, so
+    // reruns (and -resume) repeat the same chain
+    def seed1 = seed as long
+    def seed2 = Math.floorMod(seed1, 2147483646L) + 1
 
     def args = task.ext.args ?: ''
     """

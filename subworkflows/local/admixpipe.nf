@@ -12,6 +12,7 @@ include { BESTK }             from '../../modules/local/bestK.nf'
 workflow ADMIXPIPE {
     take:
     ch_input   // [ meta, vcf, popmap ]
+    seed       // value: random seed for ADMIXTURE replicates
 
     main:
     ch_versions = Channel.empty()
@@ -42,7 +43,7 @@ workflow ADMIXPIPE {
     ch_admixpipe_input = ch_vcf
         .join(ch_popmap)
         .map { meta,vcf,popmap -> tuple(meta,vcf,popmap) }
-    ADMIXTUREPIPELINE( ch_admixpipe_input )
+    ADMIXTUREPIPELINE( ch_admixpipe_input, seed )
     ch_versions = ch_versions.mix( ADMIXTUREPIPELINE.out.versions )
 
     // Run CLUMPAK

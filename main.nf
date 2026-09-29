@@ -36,6 +36,7 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
     geo_data
     geo_data_dir
     combinations
+    seed
 
     main:
 
@@ -50,7 +51,8 @@ workflow ACAMEL_HYBRIDCLASSIFICATION {
         site_coords,
         geo_data,
         geo_data_dir,
-        combinations
+        combinations,
+        seed
     )
     emit:
     multiqc_report = HYBRIDCLASSIFICATION.out.multiqc_report // channel: /path/to/multiqc_report.html
@@ -96,7 +98,8 @@ workflow {
         PIPELINE_INITIALISATION.out.site_coords,
         PIPELINE_INITIALISATION.out.geo_data,
         PIPELINE_INITIALISATION.out.geo_data_dir,
-        PIPELINE_INITIALISATION.out.combinations
+        PIPELINE_INITIALISATION.out.combinations,
+        PIPELINE_INITIALISATION.out.seed
     )
     //
     // SUBWORKFLOW: Run completion tasks

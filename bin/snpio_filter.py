@@ -46,13 +46,24 @@ def main():
     )
     parser.add_argument("--prefix", type=str, default=None,
         help="Prefix for output files (default: derived from VCF name)")
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Random seed for thinning (which SNP is kept in each window)",
+    )
+    parser.add_argument(
+        "--save_plots",
+        action="store_true",
+        help="Also write SNPio's static plot images (not used by the report)",
+    )
 
     args = parser.parse_args()
 
     # extract prefix from VCF filename
     prefix = args.prefix or get_prefix_from_vcf_path(args.vcf)
 
-    # read data
+    # read data (static plots are skipped unless --save_plots is given)
     gd = VCFReader(
         filename=args.vcf,
         popmapfile=args.popmap,
@@ -62,6 +73,7 @@ def main():
         plot_fontsize=8,
         plot_dpi=300,
         prefix=prefix,
+        save_plots=args.save_plots,
     )
 
     # generate missingness reports
@@ -71,10 +83,11 @@ def main():
     nrm = NRemover2(gd)
     gd_filt = (
         nrm.filter_monomorphic(exclude_heterozygous=False)
+        .filter_biallelic(exclude_heterozygous=False)
         .filter_missing(args.snp_cov)
         .filter_maf(args.min_maf)
         .filter_missing_sample(args.ind_cov)
-        .thin_loci(remove_all=False, size=args.flank_dist)
+        .thin_loci(remove_all=False, size=args.flank_dist, seed=args.seed)
         .resolve()
     )
     nrm.plot_sankey_filtering_report()

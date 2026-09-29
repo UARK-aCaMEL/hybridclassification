@@ -6,6 +6,7 @@ process ADMIXTUREPIPELINE {
 
     input:
     tuple val(meta), path(vcf), path(popmap)
+    val(seed)
 
     output:
     tuple val(meta), path("results.zip"),      emit: results
@@ -29,7 +30,8 @@ process ADMIXTUREPIPELINE {
         export PATH="/app/bin:/app/scripts/python/admixturePipeline:\$PATH"
     fi
 
-    admixturePipeline.py \\
+    # Seeds each ADMIXTURE run from `seed` (distinct per K and replicate)
+    admixpipe_seeded.py ${seed} \$(command -v admixturePipeline.py) \\
         -m ${popmap} \\
         -v ${vcf} \\
         -n ${task.cpus} \\

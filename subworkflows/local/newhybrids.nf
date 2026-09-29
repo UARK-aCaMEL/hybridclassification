@@ -17,6 +17,7 @@ workflow NEWHYBRIDS {
     vcf         // [ val(meta), *.vcf or *.vcf.gz ]
     tbi         // [ val(meta), *.tbi ]
     popmap      // [ val(meta), popmap ]
+    seed        // value: random seed
 
     main:
     ch_versions = Channel.empty()
@@ -57,7 +58,8 @@ workflow NEWHYBRIDS {
     //
     SIMULATE_HYBRIDS(
         ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, vcf_file] },
-        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, popmap_file] }
+        ch_top_vcf_with_popmap.map { meta, vcf_file, popmap_file -> [meta, popmap_file] },
+        seed
     )
 
     //
@@ -82,7 +84,8 @@ workflow NEWHYBRIDS {
     // Run NewHybrids for the power analysis
     //
     POWER_ANALYSIS(
-        PREPARE_SIMULATION.out.newhybrids
+        PREPARE_SIMULATION.out.newhybrids,
+        seed
     )
     ch_versions = ch_versions.mix( POWER_ANALYSIS.out.versions )
 
@@ -99,7 +102,8 @@ workflow NEWHYBRIDS {
     // Run NewHybrids for the power analysis
     //
     RUN_NEWHYBRIDS(
-        PREPARE_NEWHYBRIDS.out.newhybrids
+        PREPARE_NEWHYBRIDS.out.newhybrids,
+        seed
     )
     ch_versions = ch_versions.mix( RUN_NEWHYBRIDS.out.versions )
 

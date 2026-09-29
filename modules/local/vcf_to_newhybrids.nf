@@ -2,7 +2,7 @@ process VCF_TO_NEWHYBRIDS {
     tag   "$meta.id"
     label 'process_single'
 
-    container 'docker.io/btmartin721/snpio:1.3.21'
+    container 'docker.io/btmartin721/snpio:1.7.6'
 
     input:
     tuple val(meta), path(vcf)
