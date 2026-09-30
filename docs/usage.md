@@ -1,61 +1,159 @@
 # aCaMEL/hybridclassification: Usage
 
-> _Documentation of pipeline parameters is generated automatically from the pipeline schema and can no longer be found in markdown files._
+> _Documentation of pipeline parameters is generated automatically from the pipeline schema and can no longer be found in markdown files. Run `nextflow run UARK-aCaMEL/hybridclassification --help` to list them._
 
 ## Introduction
 
-<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
+aCaMEL/hybridclassification detects and classifies hybrids between pairs of species. It needs a VCF, a species map, a population map and a list of species pairs. Site coordinates and map layers are optional.
 
-## Samplesheet input
+Each species pair is analysed separately. The pipeline subsets the VCF to the two species and filters it, then runs ADMIXTURE and splits the samples:
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
+- **Candidate hybrids:** samples with mixed ancestry at K = 2.
+- **Parental reference groups:** all the others, labelled P0 and P1.
+
+Next it picks the loci most differentiated between P0 and P1. It uses them to simulate hybrids of known class and to classify the candidates with NewHybrids.
+
+## Inputs
+
+All the text inputs are tab-delimited, with no header. Sample IDs must match the VCF header.
+
+### VCF
+
+A single multi-sample VCF of SNPs, as `.vcf` or `.vcf.gz`. The pipeline indexes it, and keeps only biallelic SNPs.
 
 ```bash
---input '[path to samplesheet file]'
+--input '[path to VCF file]'
 ```
 
-### Multiple runs of the same sample
+### Species map
 
-The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
+The first column is the sample ID. The second is the species.
 
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+```bash
+--speciesmap '[path to species map]'
 ```
 
-### Full samplesheet
-
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
-
-A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
-
-```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+```text title="speciesmap.tsv"
+Z01CAMANO01	CAMANO
+Z01CHRERY01	CHRERY
+Z03CAMOLI01	CAMOLI
 ```
 
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
+### Population map
 
-An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
+The first column is the sample ID. The second is the population or sampling site. Sites are used to summarise the classifications and to place samples on the map.
+
+```bash
+--popmap '[path to popmap file]'
+```
+
+```text title="popmap.tsv"
+Z01CAMANO01	Z01
+Z01CHRERY01	Z01
+Z03CAMOLI01	Z03
+```
+
+### Species pairs
+
+Two species IDs from the species map per line. Each line is analysed separately, with its own subdirectory and report.
+
+```bash
+--combinations '[path to pairs file]'
+```
+
+```text title="combinations.tsv"
+CAMANO	CAMOLI
+CAMANO	CHRERY
+```
+
+### Site coordinates (optional)
+
+Site ID (as in the population map), latitude and longitude, in decimal degrees. When provided, the report includes a map of the NewHybrids classifications at each site.
+
+```bash
+--site_coords '[path to coordinates file]'
+```
+
+```text title="site_coords.tsv"
+Z01	35.90463	-91.63537
+Z02	36.09227	-91.75397
+```
+
+### Map layers (optional)
+
+Extra vector layers, such as streams or range boundaries, can be drawn on the map. Put the layer files in a directory, and describe them in a JSON file:
+
+```bash
+--geo_data_dir '[directory of layer files]' --geo_data_config '[layers JSON]'
+```
+
+```json title="layers.json"
+[
+  {
+    "path": "test_geo_data/streams.shp",
+    "z_order": 1,
+    "style": { "color": "#0066ff", "weight": 1, "opacity": 1.0 }
+  }
+]
+```
+
+Each `path` starts with the name of the `--geo_data_dir` directory. `style` takes [Leaflet path options](https://leafletjs.com/reference.html#path-option). See [`assets/test_geo_data.json`](../assets/test_geo_data.json) for an example.
+
+## Main settings
+
+### Filtering
+
+For each pair, SNPio applies these filters in order:
+
+1. Per-species missing data (`--pop_cov`).
+2. Monomorphic and multiallelic sites removed.
+3. Per-SNP missing data (`--snp_cov`).
+4. Minor allele frequency (`--min_maf`).
+5. Per-sample missing data (`--ind_cov`).
+6. Thinning to one SNP per `--thin_dist` bp. The SNP kept in each window is chosen at random, from `--seed`.
+
+The per-species filter comes first, so the SNPs kept are genotyped in both species. If fewer than `--min_species_samples` (default 5) samples of either species remain, the pipeline stops with an error that names the species. Otherwise ADMIXTURE would split the one remaining species into two groups, and NewHybrids would call "hybrids" between them. To continue, relax the missing-data thresholds or drop the pair from `--combinations`.
+
+### Candidate hybrids and parental groups
+
+ADMIXTURE runs for K = 1 to `--maxk` (default 2), with replicates aligned by CLUMPAK. Candidate hybrids come from K = 2. A sample whose larger ancestry proportion is below `--ancestry_threshold` (default 0.9) is a candidate hybrid; the rest are assigned to P0 or P1 by their main cluster.
+
+P0 and P1 are used as the known parental references in NewHybrids, so check that the K = 2 clusters really correspond to the two species. The report's ADMIXTURE barplot and evalAdmix residuals help with this.
+
+Advanced-generation hybrids that breed among themselves can form their own cluster in ADMIXTURE. Such a cluster would then be treated as a parental reference.
+
+### NewHybrids and the simulations
+
+The loci passed to NewHybrids are the `--panel_size` (default 500) with the highest Weir & Cockerham F<sub>ST</sub> between P0 and P1. Loci that do not vary in the pair (F<sub>ST</sub> undefined) come last.
+
+**Simulations:** from the P0 and P1 allele frequencies at those loci, the pipeline simulates `--sample_size` (default 10) individuals of each class, in `--n_reps` (default 4) replicates. The classes are pure P0, pure P1, F1, F2, backcross to P0 and backcross to P1. NewHybrids is run on the simulated and real samples together, and the report shows how often each simulated class is assigned correctly. This is the pipeline's measure of power.
+
+**Classification:** in the real data, a sample is assigned to a class when its NewHybrids posterior probability exceeds `--prob_threshold` (default 0.9); otherwise it is unassigned. `--nh_burnin` and `--nh_sweeps` set the length of the NewHybrids MCMC run. Check the trace plot in the report.
+
+The panel is chosen from the same parental samples that the simulations are drawn from. That can make power look higher than it would be for independent data (high-grading bias).
+
+### Outlier masking
+
+The pipeline also computes, for each sample, the hybrid index and interspecific heterozygosity (the triangle plot), from the loci whose allele frequencies differ between P0 and P1 by at least `--af_dist_min` (default 0.7).
+
+A hybrid call is masked (treated as unassigned) when the sample falls outside the 1 − `--outlier_alpha` (default 95%) Mahalanobis ellipse of the simulated individuals of its class. The report shows the summary table both with and without masking.
+
+### Genomic clines (optional)
+
+`--run_bgc` estimates hybrid indices and genomic clines with bgchm, for the candidate hybrids against P0 and P1. It uses the loci that pass `--af_dist_min`. `--bgc_iters`, `--bgc_burnin` (the warm-up proportion) and `--bgc_thin` set the MCMC run.
 
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:
 
 ```bash
-nextflow run aCaMEL/hybridclassification --input ./samplesheet.csv --outdir ./results  -profile docker
+nextflow run UARK-aCaMEL/hybridclassification \
+    --input genotypes.vcf.gz \
+    --speciesmap speciesmap.tsv \
+    --popmap popmap.tsv \
+    --combinations combinations.tsv \
+    --outdir <OUTDIR> \
+    -profile docker
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
@@ -79,66 +177,70 @@ Pipeline settings can be provided in a `yaml` or `json` file via `-params-file <
 The above pipeline run specified with a params file in yaml format:
 
 ```bash
-nextflow run aCaMEL/hybridclassification -profile docker -params-file params.yaml
+nextflow run UARK-aCaMEL/hybridclassification -profile docker -params-file params.yaml
 ```
 
-with:
+with `params.yaml` containing:
 
-```yaml title="params.yaml"
-input: './samplesheet.csv'
+```yaml
+input: 'genotypes.vcf.gz'
+speciesmap: 'speciesmap.tsv'
+popmap: 'popmap.tsv'
+combinations: 'combinations.tsv'
 outdir: './results/'
 <...>
 ```
-
-You can also generate such `YAML`/`JSON` files via [nf-core/launch](https://nf-co.re/launch).
 
 ### Updating the pipeline
 
 When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
 
 ```bash
-nextflow pull aCaMEL/hybridclassification
+nextflow pull UARK-aCaMEL/hybridclassification
 ```
 
 ### Reproducibility
 
-It is a good idea to specify the pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
+It is a good idea to specify a pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
 
-First, go to the [aCaMEL/hybridclassification releases page](https://github.com/UARK-aCaMEL/hybridclassification/releases) and find the latest pipeline version - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`. Of course, you can switch to another version by changing the number after the `-r` flag.
+First, go to the [aCaMEL/hybridclassification releases page](https://github.com/UARK-aCaMEL/hybridclassification/releases) and find the latest pipeline version - numeric only (eg. `1.0.0`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.0.0`.
 
-This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future. For example, at the bottom of the MultiQC reports.
-
-To further assist in reproducibility, you can use share and reuse [parameter files](#running-the-pipeline) to repeat pipeline runs with the same settings without having to write out a command with every single parameter.
+The version number and the value of every parameter are recorded in the _Workflow Summary_ section of each report. The parameters are also saved to `pipeline_info/params_<timestamp>.json`, which can be passed back with `-params-file` to repeat a run.
 
 > [!TIP]
-> If you wish to share such profile (such as upload as supplementary material for academic publications), make sure to NOT include cluster specific paths to files, nor institutional specific profiles.
+> If you wish to share such a parameter file (such as upload as supplementary material for academic publications), make sure to NOT include cluster specific paths to files, nor institutional specific profiles.
+
+The random steps are seeded from `--seed`: SNP thinning, every ADMIXTURE K and replicate, the hybrid simulations, NewHybrids and bgchm. A rerun with the same seed, inputs and parameters repeats them. If `--seed` is not set, a seed is derived from the run's session ID. It differs between runs, is kept when you `-resume`, and is printed at startup and recorded in the report. Rerun with `--seed <value>` to reproduce that run.
+
+Multithreaded ADMIXTURE is not bit-for-bit deterministic, so the K = 2 ancestry proportions, and occasionally the candidate hybrids, can differ slightly between reruns. For exact reproduction, give `ADMIXTUREPIPELINE` one CPU (see [Resource requests](#resource-requests)).
 
 ## Core Nextflow arguments
 
 > [!NOTE]
-> These options are part of Nextflow and use a _single_ hyphen (pipeline parameters use a double-hyphen)
+> These options are part of Nextflow and use a _single_ hyphen (pipeline parameters use a double-hyphen).
 
 ### `-profile`
 
 Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments.
 
-Several generic profiles are bundled with the pipeline which instruct the pipeline to use software packaged using different methods (Docker, Singularity, Podman, Shifter, Charliecloud, Apptainer, Conda) - see below.
+Several generic profiles are bundled with the pipeline which instruct the pipeline to use software packaged using different methods (Docker, Singularity, Podman, Shifter, Charliecloud, Apptainer) - see below.
 
 > [!IMPORTANT]
-> We highly recommend the use of Docker or Singularity containers for full pipeline reproducibility, however when this is not possible, Conda is also supported.
+> This pipeline requires a container engine. Conda is not supported, because several steps use purpose-built containers.
 
-The pipeline also dynamically loads configurations from [https://github.com/nf-core/configs](https://github.com/nf-core/configs) when it runs, making multiple config profiles for various institutional clusters available at run time. For more information and to check if your system is supported, please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation).
+The pipeline also dynamically loads configurations from [https://github.com/nf-core/configs](https://github.com/nf-core/configs) when it runs, making multiple config profiles for various institutional clusters available at run time. For more information and to see if your system is available in these configs please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation).
 
-Note that multiple profiles can be loaded, for example: `-profile test,docker` - the order of arguments is important!
-They are loaded in sequence, so later profiles can overwrite earlier profiles.
-
-If `-profile` is not specified, the pipeline will run locally and expect all software to be installed and available on the `PATH`. This is _not_ recommended, since it can lead to different results on different machines dependent on the computer environment.
+Note that multiple profiles can be loaded, for example: `-profile test,docker` - the order of arguments is important! They are loaded in sequence, so later profiles can overwrite earlier profiles.
 
 - `test`
   - A profile with a complete configuration for automated testing
-  - Includes links to test data so needs no other parameters
+  - Uses the bundled test data, with short NewHybrids runs and a 100-locus panel, so needs no other parameters
+- `test_full`
+  - The same test data, run with the default analysis settings
 - `docker`
   - A generic configuration profile to be used with [Docker](https://docker.com/)
+- `emulate_amd64`
+  - Use together with `docker` on Apple Silicon and other ARM machines, to run the x86-64 containers under emulation
 - `singularity`
   - A generic configuration profile to be used with [Singularity](https://sylabs.io/docs/)
 - `podman`
@@ -146,13 +248,11 @@ If `-profile` is not specified, the pipeline will run locally and expect all sof
 - `shifter`
   - A generic configuration profile to be used with [Shifter](https://nersc.gitlab.io/development/shifter/how-to-use/)
 - `charliecloud`
-  - A generic configuration profile to be used with [Charliecloud](https://charliecloud.io/)
+  - A generic configuration profile to be used with [Charliecloud](https://hpc.github.io/charliecloud/)
 - `apptainer`
   - A generic configuration profile to be used with [Apptainer](https://apptainer.org/)
-- `wave`
-  - A generic configuration profile to enable [Wave](https://seqera.io/wave/) containers. Use together with one of the above (requires Nextflow `24.03.0-edge` or later).
-- `conda`
-  - A generic configuration profile to be used with [Conda](https://conda.io/docs/). Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker, Singularity, Podman, Shifter, Charliecloud, or Apptainer.
+
+On the University of Arkansas AHPCC Pinnacle cluster, add the bundled Slurm configuration with `-c ahpcc.config -profile singularity`.
 
 ### `-resume`
 
@@ -168,29 +268,19 @@ Specify the path to a specific config file (this is a core Nextflow command). Se
 
 ### Resource requests
 
-Whilst the default requirements set within the pipeline will hopefully work for most people and with most input data, you may find that you want to customise the compute resources that the pipeline requests. Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most of the pipeline steps, if the job exits with any of the error codes specified [here](https://github.com/nf-core/rnaseq/blob/4c27ef5610c87db00c3c5a3eed10b1d161abf575/conf/base.config#L18) it will automatically be resubmitted with higher resources request (2 x original, then 3 x original). If it still fails after the third attempt then the pipeline execution is stopped.
+Whilst the default requirements set within the pipeline will hopefully work for most people and with most input data, you may find that you want to customise the compute resources that the pipeline requests. Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most of the steps in the pipeline, if the job exits with an error code indicating it ran out of resources, it will automatically be resubmitted once with double the requests. If it fails again, the pipeline execution is stopped.
+
+ADMIXTURE (`ADMIXTUREPIPELINE`) and NewHybrids (`RUN_NEWHYBRIDS`, `POWER_ANALYSIS`) are the most demanding steps. ADMIXTURE's run time grows with `--maxk` and the number of replicates. NewHybrids' run time grows with `--nh_sweeps`, `--panel_size` and, for the power analysis, `--n_reps` × `--sample_size`.
 
 To change the resource requests, please see the [max resources](https://nf-co.re/docs/running/configuration/nextflow-for-your-system#set-max-resources) and [customise process resources](https://nf-co.re/docs/running/configuration/nextflow-for-your-system#customize-process-resources) section of the nf-core website.
-
-### Custom Containers
-
-In some cases, you may wish to change the container or conda environment used by a pipeline steps for a particular tool. By default, nf-core pipelines use containers and software from the [biocontainers](https://biocontainers.pro/) or [bioconda](https://bioconda.github.io/) projects. However, in some cases the pipeline specified version maybe out of date.
-
-To use a different container from the default container or conda environment specified in a pipeline, please see the [updating tool versions](https://nf-co.re/docs/running/configuration/nextflow-for-your-system#update-tool-versions) section of the nf-core website.
 
 ### Custom Tool Arguments
 
 A pipeline might not always support every possible argument or option of a particular tool used in pipeline. Fortunately, nf-core pipelines provide some freedom to users to insert additional parameters that the pipeline does not include by default.
 
+For example, ADMIXTURE runs 10 replicates per K with 10-fold cross-validation by default (2 and 2 in the `test` profile). This is set by `ext.args` for `ADMIXTUREPIPELINE` in [`conf/modules.config`](../conf/modules.config).
+
 To learn how to provide additional arguments to a particular tool of the pipeline, please see the [customising tool arguments](https://nf-co.re/docs/running/configuration/nextflow-for-your-system#modifying-tool-arguments) section of the nf-core website.
-
-### nf-core/configs
-
-In most cases, you will only need to create a custom config as a one-off but if you and others within your organisation are likely to be running nf-core pipelines regularly and need to use the same settings regularly it may be a good idea to request that your custom config file is uploaded to the `nf-core/configs` git repository. Before you do this please can you test that the config file works with your pipeline of choice using the `-c` parameter. You can then create a pull request to the `nf-core/configs` repository with the addition of your config file, associated documentation file (see examples in [`nf-core/configs/docs`](https://github.com/nf-core/configs/tree/master/docs)), and amending [`nfcore_custom.config`](https://github.com/nf-core/configs/blob/master/nfcore_custom.config) to include your custom profile.
-
-See the main [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for more information about creating your own configuration files.
-
-If you have any questions or issues please send us a message on [Slack](https://nf-co.re/join/slack) on the [`#configs` channel](https://nfcore.slack.com/channels/configs).
 
 ## Running in the background
 
@@ -198,13 +288,11 @@ Nextflow handles job submissions and supervises the running jobs. The Nextflow p
 
 The Nextflow `-bg` flag launches Nextflow in the background, detached from your terminal so that the workflow does not stop if you log out of your session. The logs are saved to a file.
 
-Alternatively, you can use `screen` / `tmux` or similar tool to create a detached session which you can log back into at a later time.
-Some HPC setups also allow you to run nextflow within a cluster job submitted your job scheduler (from where it submits more jobs).
+Alternatively, you can use `screen` / `tmux` or similar tool to create a detached session which you can log back into at a later time. Some HPC setups also allow you to run nextflow within a cluster job submitted your job scheduler (from where it submits more jobs).
 
 ## Nextflow memory requirements
 
-In some cases, the Nextflow Java virtual machines can start to request a large amount of memory.
-We recommend adding the following line to your environment to limit this (typically in `~/.bashrc` or `~./bash_profile`):
+In some cases, the Nextflow Java virtual machines can start to request a large amount of memory. We recommend adding the following line to your environment to limit this (typically in `~/.bashrc` or `~./bash_profile`):
 
 ```bash
 NXF_OPTS='-Xms1g -Xmx4g'

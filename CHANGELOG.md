@@ -12,6 +12,7 @@ Initial release of aCaMEL/hybridclassification, created with the [nf-core](https
 - `--seed` for reproducible runs. It seeds SNP thinning, every ADMIXTURE run, the hybrid simulations, NewHybrids and bgchm. If unset, a seed is derived from the session ID; it is kept by `-resume`, printed at startup and recorded in the report.
 - evalAdmix model fit for every K, with a report section for K = 2 (the model used to find candidate hybrids).
 - All pipeline parameters in `nextflow_schema.json`, so they are validated and listed by `--help`.
+- Documentation: README, usage, output and citations.
 
 ### `Fixed`
 
@@ -21,6 +22,8 @@ Initial release of aCaMEL/hybridclassification, created with the [nf-core](https
 - `--geo_data_dir` defaulted to a path relative to the launch directory.
 - Only biallelic SNPs are kept. SNPio 1.7 keeps every allele at multiallelic sites, which the NewHybrids, simulation and bgc converters do not handle.
 - Strict `nextflow lint` errors.
+- The `test_full` profile was the nf-core template's placeholder; it now runs the bundled test data with the default analysis settings.
+- The VCF decompressed for AdmixPipe was published to `<pair>/admixpipe/decompress_vcf/`.
 - A pair could be analysed with one of its species missing. When the retained loci were genotyped mostly in the more numerous species, the per-sample missing-data filter removed every sample of the other: on the test data, all 56 CHRERY samples in CAMANO_CHRERY, so ADMIXTURE and NewHybrids compared two groups of CAMANO. `SNPIO_FILTER` now applies the per-species missing-data filter (`--pop_cov`) first, and stops with an error if fewer than `--min_species_samples` (default 5) samples of either species remain.
 
 ### `Dependencies`
