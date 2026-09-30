@@ -185,8 +185,6 @@
                 "CAMANO_CAMOLI/admixpipe/cvsum/cv_output.txt",
                 "CAMANO_CAMOLI/admixpipe/cvsum/ll_output.txt",
                 "CAMANO_CAMOLI/admixpipe/cvsum/loglikelihood_file.MajClust.png",
-                "CAMANO_CAMOLI/admixpipe/decompress_vcf",
-                "CAMANO_CAMOLI/admixpipe/decompress_vcf/CAMANO_CAMOLI.vcf",
                 "CAMANO_CAMOLI/admixpipe/distruct",
                 "CAMANO_CAMOLI/admixpipe/distruct/K1.pdf",
                 "CAMANO_CAMOLI/admixpipe/distruct/K2.pdf",
@@ -430,8 +428,6 @@
                 "CAMANO_CHRERY/admixpipe/cvsum/cv_output.txt",
                 "CAMANO_CHRERY/admixpipe/cvsum/ll_output.txt",
                 "CAMANO_CHRERY/admixpipe/cvsum/loglikelihood_file.MajClust.png",
-                "CAMANO_CHRERY/admixpipe/decompress_vcf",
-                "CAMANO_CHRERY/admixpipe/decompress_vcf/CAMANO_CHRERY.vcf",
                 "CAMANO_CHRERY/admixpipe/distruct",
                 "CAMANO_CHRERY/admixpipe/distruct/K1.pdf",
                 "CAMANO_CHRERY/admixpipe/distruct/K2.pdf",
@@ -629,7 +625,6 @@
                 "cv_output.txt:md5,0dd931efda85740857effe4fe601bf4e",
                 "ll_output.txt:md5,c01d08e4db081966cb91210524873c78",
                 "loglikelihood_file.MajClust.png:md5,14e6566bddee3fac6b4b1dc3887048d8",
-                "CAMANO_CAMOLI.vcf:md5,263cb9d61803322d3ea98539b1c300d3",
                 "AdmixturePopIdToPopName:md5,2c35e24bd09d1730458db1e842078480",
                 "ClumppIndFile.output.1:md5,7afc1c8c474b9deaea6cd737e91ebbfb",
                 "ClumppIndFile.output.2:md5,335700829e8903e61d640867461e16c7",
@@ -751,7 +746,6 @@
                 "cv_output.txt:md5,1c6c7c510152efe31d0dc76902c2fb25",
                 "ll_output.txt:md5,a3aa8612278143d330eb3c57de9eeee1",
                 "loglikelihood_file.MajClust.png:md5,c1c0e4b31639bdab143ec323bf688121",
-                "CAMANO_CHRERY.vcf:md5,5e57929015a69e7374cbeaa584270c91",
                 "AdmixturePopIdToPopName:md5,d4e7b61555dd792cf2129d86ef9911c8",
                 "ClumppIndFile.output.1:md5,a4b2c2d97e7bbe52db901c18bfa3b57e",
                 "ClumppIndFile.output.2:md5,cafc3b574e7f6e753c77519b5ba50245",
@@ -825,7 +819,7 @@
                 "CAMANO_CHRERY_hindex_fixed.tsv:md5,9c94c9cc606ab5b714f694a416576133"
             ]
         ],
-        "timestamp": "2026-09-29T17:40:40.355775",
+        "timestamp": "2026-09-29T18:44:55.389835",
         "meta": {
             "nf-test": "0.9.4",
             "nextflow": "25.10.4"
