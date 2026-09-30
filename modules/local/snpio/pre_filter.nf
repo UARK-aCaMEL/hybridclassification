@@ -2,7 +2,7 @@ process SNPIO_FILTER {
     tag "$meta.id"
     label 'process_medium'
 
-    container 'docker.io/btmartin721/snpio:1.7.6'
+    container 'docker.io/btmartin721/snpio:1.7.7'
 
     input:
     tuple val(meta), path(vcf), path(popmap)
