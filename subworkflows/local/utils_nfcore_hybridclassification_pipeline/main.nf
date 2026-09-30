@@ -348,6 +348,7 @@ def validateInputParameters() {
     // Integer parameters
     checkInteger.call('maxk', params.maxk, 1)
     checkInteger.call('thin_dist', params.thin_dist, 0)
+    checkInteger.call('min_species_samples', params.min_species_samples, 1)
     checkInteger.call('sample_size', params.sample_size, 1)
     checkInteger.call('n_reps', params.n_reps, 1)
     checkInteger.call('panel_size', params.panel_size, 1)

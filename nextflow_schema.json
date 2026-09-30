@@ -112,7 +112,14 @@
                     "default": 0.5,
                     "minimum": 0,
                     "maximum": 1,
-                    "description": "Maximum proportion of missing data allowed per SNP within any group (P0, P1, admixed), before NewHybrids and bgc"
+                    "description": "Maximum proportion of missing data allowed per SNP within either species of a pair, and later within any group (P0, P1, admixed) before NewHybrids and bgc"
+                },
+                "min_species_samples": {
+                    "type": "integer",
+                    "default": 5,
+                    "minimum": 1,
+                    "description": "Stop with an error if fewer samples of either species of a pair remain after SNP and sample filtering",
+                    "help_text": "Without this check, a pair whose second species is removed by the missing-data filters would be analysed as a single species: ADMIXTURE would split it into two groups and NewHybrids would call 'hybrids' between them."
                 },
                 "min_maf": {
                     "type": "number",

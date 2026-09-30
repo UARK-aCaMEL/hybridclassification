@@ -25,6 +25,8 @@ process SNPIO_FILTER {
         --flank_dist ${params.thin_dist} \\
         --min_maf ${params.min_maf} \\
         --snp_cov ${params.snp_cov} \\
+        --pop_cov ${params.pop_cov} \\
+        --min_samples_per_pop ${params.min_species_samples} \\
         --seed ${seed} \\
         --prefix ${meta.id} \\
         ${args}

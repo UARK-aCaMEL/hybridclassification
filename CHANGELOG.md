@@ -21,6 +21,7 @@ Initial release of aCaMEL/hybridclassification, created with the [nf-core](https
 - `--geo_data_dir` defaulted to a path relative to the launch directory.
 - Only biallelic SNPs are kept. SNPio 1.7 keeps every allele at multiallelic sites, which the NewHybrids, simulation and bgc converters do not handle.
 - Strict `nextflow lint` errors.
+- A pair could be analysed with one of its species missing. When the retained loci were genotyped mostly in the more numerous species, the per-sample missing-data filter removed every sample of the other: on the test data, all 56 CHRERY samples in CAMANO_CHRERY, so ADMIXTURE and NewHybrids compared two groups of CAMANO. `SNPIO_FILTER` now applies the per-species missing-data filter (`--pop_cov`) first, and stops with an error if fewer than `--min_species_samples` (default 5) samples of either species remain.
 
 ### `Dependencies`
 
