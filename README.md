@@ -47,13 +47,15 @@ nextflow run UARK-aCaMEL/hybridclassification -profile test,docker --outdir test
 
 Use `-profile test,singularity` on HPC systems, or add `emulate_amd64` on Apple Silicon (`-profile test,docker,emulate_amd64`). When the run finishes, open the reports in `test_results/reports/` in a web browser.
 
-Nextflow downloads the pipeline from GitHub the first time you run `UARK-aCaMEL/hybridclassification`. To run from a local copy instead, for example to modify the pipeline, clone the repository and run `main.nf`:
+Nextflow downloads the pipeline from GitHub the first time you run `UARK-aCaMEL/hybridclassification`. Add `-r 1.0.0` to run a specific release. To run from a local copy instead, for example to modify the pipeline, clone the repository and run `main.nf`:
 
 ```bash
 git clone https://github.com/UARK-aCaMEL/hybridclassification.git
 cd hybridclassification
 nextflow run main.nf -profile test,docker --outdir test_results
 ```
+
+This runs the code checked out in the clone. Use `git checkout 1.0.0` to run a release.
 
 ## Usage
 

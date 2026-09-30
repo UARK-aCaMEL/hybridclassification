@@ -78,7 +78,7 @@
                     "vcftools": "0.1.16"
                 },
                 "Workflow": {
-                    "aCaMEL/hybridclassification": "v1.0dev"
+                    "aCaMEL/hybridclassification": "v1.0.0"
                 }
             },
             [
