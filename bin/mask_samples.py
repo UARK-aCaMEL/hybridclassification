@@ -131,7 +131,10 @@ def main():
     df_emp = df_cls[df_cls['MaxP'] > args.prob_threshold][['Individual','Assigned']]
     df_emp = df_emp[~df_emp['Assigned'].isin(['P0','P1'])]
     if df_emp.empty:
-        sys.exit("No non-pure empirical samples above threshold")
+        # Nothing to mask: write empty outputs so the report is still built
+        print(f"No samples assigned to a hybrid class with posterior > {args.prob_threshold}; nothing to mask")
+        write_outputs([], args.out_prefix)
+        return
 
     # Load simulation mapping
     df_simmap = (
@@ -194,14 +197,18 @@ def main():
         # Plot diagnostics ellipse
         plot_diagnostics(cls, sim_pts, np.vstack(emp_pts), mu, cov, cutoff, args.out_prefix)
 
-    # Save outputs
-    df_res    = pd.DataFrame(results)
-    masked    = df_res[~df_res['In_Mahalanobis']]['Sample'].tolist()
-    mask_file = f"{args.out_prefix}_masked_samples.txt"
+    write_outputs(results, args.out_prefix)
+
+def write_outputs(results, prefix):
+    """Write the masked-sample list and the mask table (header only if empty)."""
+    cols = ['Sample', 'Class', 'HybridIndex', 'Heterozygosity', 'MahalanobisD2', 'p_value', 'In_Mahalanobis']
+    df_res    = pd.DataFrame(results, columns=cols)
+    masked    = df_res[~df_res['In_Mahalanobis'].astype(bool)]['Sample'].tolist()
+    mask_file = f"{prefix}_masked_samples.txt"
     Path(mask_file).write_text("\n".join(masked))
     print(f"✅ Masked {len(masked)} samples → {mask_file}")
 
-    table_file = f"{args.out_prefix}_mask_table.tsv"
+    table_file = f"{prefix}_mask_table.tsv"
     # 6 significant digits: the last digits of D2 and p depend on the CPU's linear algebra kernels
     df_res.to_csv(table_file, sep='\t', index=False, float_format='%.6g')
     print(f"✅ Detailed table → {table_file}")

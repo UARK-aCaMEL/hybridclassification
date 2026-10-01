@@ -113,7 +113,13 @@ def main():
     df_emp = df_hcls[df_hcls['MaxP'] > args.prob_threshold]
     df_emp = df_emp[~df_emp['Assigned'].isin(['P0','P1'])]
     if df_emp.empty:
-        sys.exit("No empirical hybrids above threshold")
+        # Keep the report section, with a note instead of the plot
+        header = Path(args.template).read_text()
+        note = (f"<p>No samples were assigned to a hybrid class with posterior probability "
+                f"above {args.prob_threshold}, so there are no hybrid calls to check.</p>")
+        Path(args.out).write_text(header + note)
+        print(f"No empirical hybrids above threshold; wrote a placeholder to {args.out}")
+        return
 
     # 4) load & classify simulation samples
     simmap = load_simmap(args.hindex_popmap)
