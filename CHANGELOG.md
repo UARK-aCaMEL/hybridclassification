@@ -3,6 +3,13 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### `Fixed`
+
+- The run stopped, without a report, when no sample was classified as a hybrid above `--prob_threshold` ([#8](https://github.com/UARK-aCaMEL/hybridclassification/issues/8)). The report is now built, with empty hybrid and mask lists.
+- With `--run_bgc`, a pair without candidate hybrids stopped the run in `BGC_HM`. Such pairs now skip genomic clines with a warning.
+
 ## v1.0.0 - Schism - [30-09-2026]
 
 Initial release of aCaMEL/hybridclassification, created with the [nf-core](https://nf-co.re/) template.
