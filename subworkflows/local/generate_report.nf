@@ -213,13 +213,16 @@ workflow GENERATE_REPORT {
         // MCMC trace plot
         // Not planned for now (inflates report size too much)
 
+        // Pairs without candidate hybrids have no bgchm results (remainder: true
+        // keeps them; their missing entries are dropped before MultiQC)
+
         // MCMC summary stats
         BGC_MCMC_SUMMARY( bgc_output, file("${projectDir}/assets/multiqc_bgc_summary.html", checkIfExists: true) )
-        ch_multiqc_files = ch_multiqc_files.join(BGC_MCMC_SUMMARY.out.table_json)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_MCMC_SUMMARY.out.table_json, remainder: true)
 
         // Hybrid indices
         BGC_PLOT_HINDEX( bgc_output, file("${projectDir}/assets/multiqc_bgc_hindex.html", checkIfExists: true) )
-        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_HINDEX.out.plot_html)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_HINDEX.out.plot_html, remainder: true)
 
         // Genomic clines and alpha-beta plot
         BGC_PLOT_CLINES(
@@ -228,9 +231,9 @@ workflow GENERATE_REPORT {
             file("${projectDir}/assets/multiqc_bgc_gencline_scatter.html", checkIfExists: true),
             file("${projectDir}/assets/multiqc_bgc_gencline_single.html", checkIfExists: true)
         )
-        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.cline_plot_html)
-        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.scatter_plot_html)
-        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.single_plot_html)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.cline_plot_html, remainder: true)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.scatter_plot_html, remainder: true)
+        ch_multiqc_files = ch_multiqc_files.join(BGC_PLOT_CLINES.out.single_plot_html, remainder: true)
     }
 
 
@@ -295,7 +298,7 @@ workflow GENERATE_REPORT {
 
     // One report per species pair: [ meta, report files, configs, logo, replace_names, sample_names ]
     MULTIQC (
-        ch_multiqc_files.map { row -> [ row[0], row[1..-1].flatten(), multiqc_configs, multiqc_logo, [], [] ] }
+        ch_multiqc_files.map { row -> [ row[0], row[1..-1].flatten().findAll { f -> f != null }, multiqc_configs, multiqc_logo, [], [] ] }
     )
 
     CUSTOMIZE_REPORT(

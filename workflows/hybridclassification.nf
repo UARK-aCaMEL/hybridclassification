@@ -121,9 +121,17 @@ workflow HYBRIDCLASSIFICATION {
     //
     ch_bgc_text  = Channel.empty()
     if (params.run_bgc){
+        // bgchm needs admixed samples: skip pairs without candidate hybrids
         ch_joined_bgc = SNPIO_FILTER.out.filtered_vcf
                         .join(SNPIO_FILTER.out.filtered_tbi)
                         .join(FIND_CANDIDATES.out.popmap)
+                        .filter { m, v, t, p ->
+                            def has_candidates = p.readLines().any { line -> line.tokenize('\t')[1] == 'ADMIX' }
+                            if (!has_candidates) {
+                                log.warn("${m.id}: no candidate hybrids, so genomic clines are skipped for this pair")
+                            }
+                            has_candidates
+                        }
         GENOMIC_CLINES(
             ch_joined_bgc.map { m, v, t, p -> tuple(m, v) },
             ch_joined_bgc.map { m, v, t, p -> tuple(m, t) },
