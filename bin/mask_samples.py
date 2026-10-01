@@ -194,6 +194,11 @@ def main():
             })
             emp_pts.append(x)
 
+        # None of this class's hybrid calls has a hybrid index (e.g. they are
+        # all parental reference samples), so there is nothing to plot
+        if not emp_pts:
+            continue
+
         # Plot diagnostics ellipse
         plot_diagnostics(cls, sim_pts, np.vstack(emp_pts), mu, cov, cutoff, args.out_prefix)
 
